@@ -1,0 +1,30 @@
+attrs==21.2.0
+certifi==2021.5.30
+chardet==4.0.0
+click==8.0.1
+click-plugins==1.1.1
+cligj==0.7.2
+colorama==0.4.4
+cycler==0.10.0
+dload==0.6
+Fiona @ file:///D:/SUPSI/geodata-ch/src/requirements/Fiona-1.8.20-cp39-cp39-win_amd64.whl
+GDAL @ file:///D:/SUPSI/geodata-ch/src/requirements/GDAL-3.3.1-cp39-cp39-win_amd64.whl
+geojson==2.5.0
+geopandas==0.9.0
+idna==2.10
+kiwisolver==1.3.1
+matplotlib==3.4.2
+munch==2.5.0
+numpy==1.21.0
+pandas==1.3.0
+Pillow==8.3.1
+pyparsing==2.4.7
+pyproj @ file:///D:/SUPSI/geodata-ch/src/requirements/pyproj-3.1.0-cp39-cp39-win_amd64.whl
+python-dateutil==2.8.1
+pytz==2021.1
+requests==2.25.1
+Rtree @ file:///D:/SUPSI/geodata-ch/src/requirements/Rtree-0.9.7-cp39-cp39-win_amd64.whl
+Shapely @ file:///D:/SUPSI/geodata-ch/src/requirements/Shapely-1.7.1-cp39-cp39-win_amd64.whl
+six==1.16.0
+tqdm==4.61.2
+urllib3==1.26.6
