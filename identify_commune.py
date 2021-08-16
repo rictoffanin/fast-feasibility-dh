@@ -18,7 +18,7 @@ from geopandas.tools import geocode
 # parentDir = os.path.dirname(fileDir)
 
 def commune_number_from_address(address):
-    geo = geocode(addr, provider='nominatim', user_agent='autogis_xx', timeout=4)
+    geo = geocode(address, provider='nominatim', user_agent='autogis_xx', timeout=4)
 
     assert not geo.loc[0, 'address'] == None, "Your query was not successful. No data was retrieved. Re-try with another address"
     assert type(geo.loc[0, 'geometry']) == Point, "Your geometry is not of Point type. It is" % type(geo['geometry'])
@@ -41,6 +41,9 @@ def commune_number_from_address(address):
     temp = json.loads(res.text)
     gmd_nbr = temp['results'][0]['id']
     print("The official municipality number of the address", address, "is", gmd_nbr)
+    orig_point = geo.loc[0, 'geometry']
+
+    return gmd_nbr, orig_point
 
 
 # Main

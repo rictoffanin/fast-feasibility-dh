@@ -98,7 +98,7 @@ def post_processing(buildings, data_sh, data_dhw, COMMUNE):
     folder = "\\output\\processed_data"
     filename = fileDir + folder + "\\data-%s.csv" % COMMUNE
     print("Writing the results file to: " + filename)
-    buildings.to_csv(filename, encoding='utf-8-sig', index_label='index')
+    buildings.to_csv(filename, sep=";", encoding='utf-8-sig', index_label='index')
 
     return buildings
 
