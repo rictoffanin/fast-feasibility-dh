@@ -12,13 +12,16 @@ import geopandas as gpd
 from shapely.geometry import Point
 from geopandas.tools import geocode
 
+
 # absFilePath = os.path.abspath(__file__)
 # fileDir = os.path.dirname(os.path.abspath(__file__))
 # parentDir = os.path.dirname(fileDir)
 
 def commune_number_from_address(address):
-
     geo = geocode(addr, provider='nominatim', user_agent='autogis_xx', timeout=4)
+
+    assert not geo.loc[0, 'address'] == None, "Your query was not successful. No data was retrieved. Re-try with another address"
+    assert type(geo.loc[0, 'geometry']) == Point, "Your geometry is not of Point type. It is" % type(geo['geometry'])
 
     coords = str(geo.loc[0, 'geometry'].x) + "," + str(geo.loc[0, 'geometry'].y)
 
@@ -31,13 +34,14 @@ def commune_number_from_address(address):
         mapExtent='0,0,0,0',
         tolerance='0',
         layers='all:ch.swisstopo.swissboundaries3d-gemeinde-flaeche.fill'
-        )
+    )
 
     # Fetch data from WFS using requests
     res = requests.get(url, params=params)
     temp = json.loads(res.text)
     gmd_nbr = temp['results'][0]['id']
     print("The official municipality number of the address", address, "is", gmd_nbr)
+
 
 # Main
 if __name__ == "__main__":
