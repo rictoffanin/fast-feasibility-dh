@@ -1,6 +1,6 @@
 # Structure of the code
 
-1. Starting from an address or an EGID, geocode the building.
+1. Starting from an address, geocode the building.
 2. Download the data from REA of the municipality where the building is located.
 3. Estimate the demand (SH and DHW) for every building in the area.
 4. Define the parameters of the network 
