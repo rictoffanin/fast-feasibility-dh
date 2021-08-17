@@ -44,18 +44,23 @@ def clusterize(buildings, commune, radius, point, n):
     point.to_crs(CRS.from_epsg(21781), inplace=True)
 
     buildings["distance"] = buildings['geometry'].distance(point.loc[0, 'geometry'])
+    buildings.sort_values("fab_tot", inplace=True, ascending=False, ignore_index=True)
 
     cluster = buildings.loc[buildings["distance"] < radius].copy()
     cluster = cluster.head(n)
 
-    buildings.sort_values("fab_tot", inplace=True, ascending=False, ignore_index=True)
 
-    area = pi * pow(radius, 2)
+
+    # area = pi * pow(radius, 2)
     convex_hull = cluster['geometry'].unary_union.convex_hull
-    density = cluster['fab_tot'].sum() / convex_hull.area
-    print("The heat density of the cluster is", "{:.2f}".format(density), "kWh/m2")
 
-    plt.show()
+    land_heat_density = cluster['fab_tot'].sum() / convex_hull.area
+    print("The land heat density of the cluster is", "{:.2f}".format(land_heat_density), "kWh/m2 =", "{:.2f}".format(land_heat_density*10), "MWh/ha")
+    print("The value should be higher than 350 MWh/ha.")
+
+    building_heat_density = cluster['fab_tot'].sum() / cluster['SRE'].sum()
+    print("The building heat density of the cluster is", "{:.2f}".format(building_heat_density), "kWh/m2 per year")
+    print("The value should be higher than 70 kWh/m2 per year.")
 
     # saving the results in a .csv file
     absFilePath = os.path.abspath(__file__)
