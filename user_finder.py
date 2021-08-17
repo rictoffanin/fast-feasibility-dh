@@ -68,7 +68,7 @@ def clusterize(buildings, commune, radius, point, n):
 
 # Main
 if __name__ == "__main__":
-    # python network_creator.py -addr "Via La Santa 1, Lugano, Svizzera" -r 100 -n 10
+    # python user_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 100 -n 10
 
     print('\nProgram started\n')
 
