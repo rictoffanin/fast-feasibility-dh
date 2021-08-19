@@ -48,8 +48,7 @@ def clusterize(buildings, commune, radius, point, n):
 
     cluster = buildings.loc[buildings["distance"] < radius].copy()
     cluster = cluster.head(n)
-
-
+    cluster.sort_values("distance", inplace=True, ignore_index=True)
 
     # area = pi * pow(radius, 2)
     convex_hull = cluster['geometry'].unary_union.convex_hull
