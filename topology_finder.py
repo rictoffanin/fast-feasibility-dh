@@ -5,8 +5,10 @@ from pyproj import CRS
 from shapely.geometry import LineString, Point, MultiLineString
 
 # Specify the name that is used to search for the data
+from shapely.ops import unary_union
+
 place_name = "Lugano, Ticino, Switzerland"
-address = "Via La Santa 1, Lugano, Svizzera"
+address = "Via La Santa 1, Lugano, Ticino, Switzerland"
 
 # Get place boundary related to the place name as a geodataframe
 area = ox.geocode_to_gdf(place_name)
@@ -28,6 +30,7 @@ tags = {'building': True}
 # Retrieve buildings with a defined distance in meters from address
 buildings = ox.geometries_from_address(address, tags, dist=500)
 # Project the buildings
+print(buildings.crs)
 buildings.to_crs(CRS.from_epsg(21781), inplace=True)
 
 # Read the file containing the info regarding the buildings
@@ -53,13 +56,25 @@ cluster = gpd.read_file(filename, driver="GeoJSON")
 # plt.tight_layout()
 # plt.show()
 
-# define the origin of the network
+# todo: it should be the address given in the beginning (coordinates can be obtained with geocoding). non funziona la
+#  conversione fra CRS define the origin of the network
+#
+#  origin = gpd.GeoDataFrame([[Point(ox.geocode(address))]],
+#  columns=['geometry']) origin.set_crs(4326, inplace=True)
+#
+# # Project the origin
+# print("The point", origin.loc[0,'geometry'], "in CRS", origin.crs)
+# origin.to_crs(2056, inplace=True)
+# print("The point", origin.loc[0,'geometry'], "in CRS", origin.crs)
+# Plot the municipality with the buildings
 origin = cluster["geometry"].values[0]
-# todo: it should be the address given in the beginning (coordinates can be obtained with geocoding)
 destination = cluster["geometry"].values[1:-1]
+
+
 
 # Find the node in the graph that is closest to the origin point (node id)
 orig_node_id = ox.distance.nearest_nodes(graph, origin.x, origin.y)
+print(orig_node_id)
 # Find the node in the graph that is closest to the target point (node id)
 target_node_id = ox.distance.nearest_nodes(graph, destination.x, destination.y)
 
@@ -86,8 +101,27 @@ dest_nodes = gpd.GeoDataFrame(target_node, geometry='geometry', crs=nodes.crs)
 
 # creating a list containing every paths from origin to destination
 route_lines = []
+
 for i in route:
     route_lines.append(LineString(list(nodes.loc[i].geometry.values)))
+
+# todo: to be completed, adding origin and destination
+# r_od = []
+# for i, d in zip(route,destination):
+#     temp = unary_union([origin,nodes.loc[i, 'geometry'].values])
+#
+#     # r_od.append(pnt for pnt in temp)
+#     temp.append(d)
+#     print(type(temp))
+#     print(r_od[1:3])
+#     break
+
+
+
+# unary_union allows to separate the line into segments and remove duplicates
+out = unary_union(route_lines)
+# creating geodataframe containing the branches of the network
+out = gpd.GeoDataFrame(out, columns=['geometry'], crs=nodes.crs)
 
 # todo: append to every paths the origin and the destination
 # creating a geodataframe with the linestring of # creating a list containing every paths from origin to destination
@@ -110,9 +144,12 @@ ax = buildings.plot(ax=ax, facecolor='khaki', alpha=0.7)
 ax = cluster.plot(ax=ax, markersize=24)
 
 # Add the route
-ax = route_geom.plot(ax=ax, linewidth=1, linestyle='--', color='red')
+# ax = route_geom.plot(ax=ax, linewidth=1, linestyle='--', color='red')
 
+ax = out.plot(ax=ax, linewidth=0.2,  linestyle='--', color='red')
+out['length'] = out['geometry'].length
+print("The length of the network is", out['geometry'].length.sum()/1000, "km")
 # Add the origin and destination nodes of the route
-ax = dest_nodes.plot(ax=ax, markersize=12, color='green')
-ax = orig_nodes.plot(ax=ax, markersize=48, color='black')
+# ax = dest_nodes.plot(ax=ax, markersize=12, color='green')
+# ax = orig_nodes.plot(ax=ax, markersize=48, color='black')
 plt.show()
