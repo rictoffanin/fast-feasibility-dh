@@ -96,36 +96,7 @@ route_geom = gpd.GeoDataFrame(route_lines, crs=edges.crs, columns=['geometry'])
 route_geom['length_m'] = route_geom.length
 # fixme: add these two to the cluster
 
-# flatten the list of lists containing the osmids
-# flat_list = [item for sublist in route for item in sublist]
-# creating a GeoDataFrame with the nodes in the network
-# route_nodes_gdf = nodes.loc[flat_list]
-# route_edges_gdf = edges['osmid'].loc[flat_list]
-# print(edges)
-# dropping duplicates
-# route_edges_gdf.drop_duplicates(inplace=True)
-# route_nodes_gdf.drop_duplicates(inplace=True)
-# print(route_lines)
-# print(route_gdf)
-# route_graph = ox.graph_from_gdfs(route_nodes_gdf, edges)
-# print(route_graph)
-
-# print(route_geom)
-# route_paths.plot()
-# route_joined = LineString(route_nodes_gdf.geometry.unary_union)
-# print(route_joined.length)
-# Create a geometry for the shortest path
-# route_line = LineString(list(route_nodes.geometry.values))
-# print(route_nodes.loc[1, 'geometry'].values)
-# route_line = [LineString(list(ids)) for ids in route_nodes.geometry.values]
-# route_nodes["line"] = route_nodes['geometry'].unary_union
-# print(route_nodes)
-
-# Create a GeoDataFrame
-# route_geom = gpd.GeoDataFrame([[route_line]], geometry='geometry', crs=edges.crs, columns=['geometry'])
-# route_geom =  gpd.GeoDataFrame(route_nodes["line"], geometry='line', crs=edges.crs, columns=['geometry'])
-#
-# # Add a list of osmids associated with the route
+# Add a list of osmids associated with the route
 # route_nodes['osmid'] = route_nodes.index
 # route_geom.loc[0, 'osmids'] = str(list(route_nodes['osmid'].values))
 
