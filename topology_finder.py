@@ -15,7 +15,7 @@ area = ox.geocode_to_gdf(place_name)
 area.to_crs(CRS.from_epsg(21781), inplace=True)
 
 # Fetch OSM street network from the location
-graph = ox.graph_from_address(address, simplify=False, retain_all=True, dist=500, network_type='walk')
+graph = ox.graph_from_address(address, simplify=False, retain_all=True, dist=500)
 # Project the data
 graph = ox.project_graph(graph, to_crs=CRS.from_epsg(21781))
 
@@ -69,12 +69,14 @@ cluster = gpd.read_file(filename, driver="GeoJSON")
 # Plot the municipality with the buildings
 origin = cluster["geometry"].values[0]
 destination = cluster["geometry"].values[1:-1]
-
+destination = gpd.GeoSeries(destination)
+print(type(destination))
 
 
 # Find the node in the graph that is closest to the origin point (node id)
 orig_node_id = ox.distance.nearest_nodes(graph, origin.x, origin.y)
-print(orig_node_id)
+orig_node_id_single = orig_node_id
+# print(orig_node_id)
 # Find the node in the graph that is closest to the target point (node id)
 target_node_id = ox.distance.nearest_nodes(graph, destination.x, destination.y)
 
@@ -83,10 +85,36 @@ orig_node_id = [orig_node_id for x in range(len(target_node_id))]
 
 # Calculate the shortest paths (route contains the node IDs of the graph)
 route = ox.shortest_path(G=graph, orig=orig_node_id, dest=target_node_id, weight='length')
-# removing None from list (none = no path found)
-route = [i for i in route if i]
-# todo: keep the IDs of the None and identify the user
+# finding the index of None from list (None = no path found)
+index = [i for i, e in enumerate(route) if e is None]
+print(route[index[1]])
 
+# orig_node_id = orig_node_id[index]
+# target_node_id = target_node_id[index]
+# route = route[index]
+# route = [i for i in route if i]
+# orig_node_id = [id for id in orig_node_id for i in route if i]
+# target_node_id = [id for id in target_node_id for i in route if i]
+
+
+for idx in index:
+    # print(idx)
+    # if route[idx] is None:
+    route[idx] = [orig_node_id[idx], orig_node_id[idx]]
+    destination.loc[idx] = origin
+    # del route[idx]
+    # del destination[idx]
+    # del orig_node_id[idx]
+    # del target_node_id[idx]
+
+# print(destination)
+assert len(route) == len(orig_node_id), "ERROR: LEN OF ROUTE IS %s AND LEN OF ID IS %s" % (len(route), len(orig_node_id))
+# for idx in index:
+#     del orig_node_id[idx]
+#     del target_node_id[idx]
+#     del route[idx]
+# todo: keep the IDs of the None and identify the user
+# print(route)
 # Retrieve the rows from the nodes GeoDataFrame based on the node id (node id is the index label)
 orig_node = nodes.loc[orig_node_id]
 target_node = nodes.loc[target_node_id]
@@ -101,31 +129,40 @@ dest_nodes = gpd.GeoDataFrame(target_node, geometry='geometry', crs=nodes.crs)
 
 # creating a list containing every paths from origin to destination
 route_lines = []
-
 for i in route:
     route_lines.append(LineString(list(nodes.loc[i].geometry.values)))
 
 # todo: to be completed, adding origin and destination
-# r_od = []
-# for i, d in zip(route,destination):
-#     temp = unary_union([origin,nodes.loc[i, 'geometry'].values])
-#
-#     # r_od.append(pnt for pnt in temp)
-#     temp.append(d)
-#     print(type(temp))
-#     print(r_od[1:3])
-#     break
+r_od = []
+for idx in range(len(route_lines)):
+    temp = []
+    temp.append(origin)
+
+    for coord in route_lines[idx].coords:
+        temp.append(coord)
+    # print(destination[idx])
+    temp.append(destination[idx])
+    line = LineString(temp)
+    # print(temp)
+    del temp
+    r_od.append(line)
 
 
-
+print("route completed")
+# print(r_od)
 # unary_union allows to separate the line into segments and remove duplicates
-out = unary_union(route_lines)
+out = unary_union(r_od)
 # creating geodataframe containing the branches of the network
 out = gpd.GeoDataFrame(out, columns=['geometry'], crs=nodes.crs)
-
+print("unary union completed")
 # todo: append to every paths the origin and the destination
 # creating a geodataframe with the linestring of # creating a list containing every paths from origin to destination
-route_geom = gpd.GeoDataFrame(route_lines, crs=edges.crs, columns=['geometry'])
+route_geom = gpd.GeoDataFrame(r_od, crs=edges.crs, columns=['geometry'])
+# adding origin & destination
+# route_geom['origin'] = origin
+# route_geom['destination'] = destination
+# df['line']=df.apply(lambda x: LineString([x['orig_coord'], x['dest_coord']]),axis=1)
+# route_geom['geometry'] = route_geom.apply(lambda x: LineString([route_geom['origin'], route_geom['path'], route_geom['destination']]),axis=1)
 # Calculate the route length
 route_geom['length_m'] = route_geom.length
 # fixme: add these two to the cluster
@@ -146,10 +183,11 @@ ax = cluster.plot(ax=ax, markersize=24)
 # Add the route
 # ax = route_geom.plot(ax=ax, linewidth=1, linestyle='--', color='red')
 
-ax = out.plot(ax=ax, linewidth=0.2,  linestyle='--', color='red')
+ax = out.plot(ax=ax, linewidth=2,  linestyle='--', color='red')
 out['length'] = out['geometry'].length
 print("The length of the network is", out['geometry'].length.sum()/1000, "km")
+print("The heat density of the network is", cluster['fab_tot'].sum()/1000/out['geometry'].length.sum(), "MWh/m")
 # Add the origin and destination nodes of the route
-# ax = dest_nodes.plot(ax=ax, markersize=12, color='green')
+ax = dest_nodes.plot(ax=ax, markersize=12, color='green')
 # ax = orig_nodes.plot(ax=ax, markersize=48, color='black')
 plt.show()
