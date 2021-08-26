@@ -1,12 +1,13 @@
 # Structure of the code
 
-Given an address, identify the official number fo the municipality.
+Given an address, the official number fo the municipality is identified.
 
 <pre>
 python identify_commune.py -addr "Via La Santa 1, Lugano, Ticino, Svizzera"
 </pre>
 
 Download the data from REA of the municipality where the building is located.
+The m
 <pre>
 python download_rea_gdf.py -can TI -com 5192
 </pre>
