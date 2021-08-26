@@ -27,7 +27,7 @@ def user_finder(filename, address, distance):
     # area.to_crs(CRS.from_epsg(21781), inplace=True)
 
     # Fetch OSM street network from the location
-    graph = ox.graph_from_address(address, simplify=False, retain_all=True, dist=distance+250, network_type='all')
+    graph = ox.graph_from_address(address, simplify=False, retain_all=True, dist=distance+250, network_type='walk')
     # Project the data
     graph = ox.project_graph(graph, to_crs=CRS.from_epsg(21781))
 
