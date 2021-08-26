@@ -32,15 +32,15 @@ def save_rea_data(canton, commune):
     print("Downloading data from Swiss official commune register for", commune, "(BFS gemeinde-nummer)")
     url = "%s/%s/%s.zip" % (c.ZIP_URL, canton, commune)
 
-    old_stdout = sys.stdout  # backup current stdout
-    old_stderr = sys.stderr  # backup current stderr
-    sys.stdout = open(os.devnull, "w")
-    sys.stderr = open(os.devnull, "w")
+    # old_stdout = sys.stdout  # backup current stdout
+    # old_stderr = sys.stderr  # backup current stderr
+    # sys.stdout = open(os.devnull, "w")
+    # sys.stderr = open(os.devnull, "w")
     folder = "/data_from_rea"
     extraction_path = fileDir + folder
     string = dload.save_unzip(url, extract_path=extraction_path, delete_after=True)
-    sys.stdout = old_stdout  # reset old stdout
-    sys.stderr = old_stderr  # reset old stderr
+    # sys.stdout = old_stdout  # reset old stdout
+    # sys.stderr = old_stderr  # reset old stderr
 
     if not string:
         print("The number does not correspond to an existing Swiss commune. The list is available at: "
@@ -90,6 +90,7 @@ def download_clean_list(list_clean_grouped, list_dirty):
         if res.status_code == 200:
             temp = json.loads(res.text)
             # jprint(temp)
+
             if not 'features' in temp or len(temp['features']) == 0:
                 print("No data was retrieved. Please enter different inputs")
                 print('\nProgram ended')
@@ -102,11 +103,19 @@ def download_clean_list(list_clean_grouped, list_dirty):
                 i_b = res.text.rfind("_")+2
                 i_c = res.text.rfind("_")
                 egid_id = res.text[i_a:i_b]
+
                 egid_id.strip()
                 list_dirty.loc[list_dirty.count()] = res.text[i_a:i_c]
+
                 feature_id = feature_id.replace(egid_id + ',', '')
+                feature_id = feature_id.replace(',' + egid_id, '')
+
                 url = "%s/%s/%s" % (c.API_URL, c.DATA_LAYER, feature_id)
                 res = requests.get(url)
+
+
+        else:
+            print(res.status_code)
 
         url = "%s/%s/%s?geometryFormat=geojson" % (c.API_URL, c.DATA_LAYER, feature_id)
         res = requests.get(url)

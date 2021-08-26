@@ -54,12 +54,12 @@ def clusterize(buildings, commune, radius, point, n):
     convex_hull = cluster['geometry'].unary_union.convex_hull
 
     land_heat_density = cluster['fab_tot'].sum() / convex_hull.area
-    print("The land heat density of the cluster is", "{:.2f}".format(land_heat_density), "kWh/m2 =", "{:.2f}".format(land_heat_density*10), "MWh/ha")
-    print("The value should be higher than 350 MWh/ha.")
+    # print("The land heat density of the cluster is", "{:.2f}".format(land_heat_density), "kWh/m2 =", "{:.2f}".format(land_heat_density*10), "MWh/ha")
+    # print("The value should be higher than 350 MWh/ha.")
 
     building_heat_density = cluster['fab_tot'].sum() / cluster['SRE'].sum()
-    print("The building heat density of the cluster is", "{:.2f}".format(building_heat_density), "kWh/m2 per year")
-    print("The value should be higher than 70 kWh/m2 per year.")
+    # print("The building heat density of the cluster is", "{:.2f}".format(building_heat_density), "kWh/m2 per year")
+    # print("The value should be higher than 70 kWh/m2 per year.")
 
     # saving the results in a .csv file
     absFilePath = os.path.abspath(__file__)
@@ -69,6 +69,7 @@ def clusterize(buildings, commune, radius, point, n):
     folder = "\\output\\processed_data"
     filename = fileDir + folder + "\\cluster-%s.geojson" % commune
     cluster.to_file(filename, driver="GeoJSON", show_bbox=True, indent=4)
+
 
 # Main
 if __name__ == "__main__":
@@ -90,7 +91,8 @@ if __name__ == "__main__":
     # commune = args.com
 
     gmd, p = com_num(address)
-    fp = "D:\SUPSI\geodata-ch\src\output\processed_data\data-" + str(gmd) + ".csv"
+    fileDir = os.path.dirname(os.path.abspath(__file__))
+    fp = fileDir + "\\output\\processed_data\\data-" + str(gmd) + ".csv"
 
     temp = pd.read_csv(fp, sep=";", index_col='index')
     temp['geometry'] = temp['geometry'].apply(wkt.loads)
@@ -98,6 +100,5 @@ if __name__ == "__main__":
     # print(b.head())
 
     clusterize(b, gmd, radius, p, n_max)
-
 
     print('\nProgram ended\n')
