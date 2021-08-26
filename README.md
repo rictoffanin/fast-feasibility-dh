@@ -12,7 +12,7 @@ The main parameters are the location (coordinates), the age, the type, the floor
 python download_rea_gdf.py -can TI -com 5192
 </pre>
 
-Estimate the demand (SH and DHW) for every building in the area.
+Estimate the demand (SH and DHW) for every building in the area.  
 The demand data is taken from _Pampuri et al., Mappatura delle aree idonee alle reti di 
 teleriscaldamento, 2018_  (https://www4.ti.ch/fileadmin/DT/temi/risparmio_energetico/teleriscaldamento/documenti/Rapporto_Mappatura_aree_idonee_teleriscaldamento_09032018.pdf)
 <pre>
