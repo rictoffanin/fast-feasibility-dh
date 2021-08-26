@@ -1,13 +1,32 @@
 # Structure of the code
 
-1. Starting from an address, geocode the building.
-2. Download the data from REA of the municipality where the building is located.
-3. Estimate the demand (SH and DHW) for every building in the area.
-4. Define the parameters of the network 
-   (radius from the buildings and max number of connections)
-5. Identify the best users in terms of demand and connect the buildings to the generator
-6. Estimate general parameters of the network (demand per unit area, demand per unit length)
-7. Create a plot of the area with the selected buildings
+Given an address, identify the official number fo the municipality.
+
+<pre>
+python identify_commune.py -addr "Via La Santa 1, Lugano, Ticino, Svizzera"
+</pre>
+
+Download the data from REA of the municipality where the building is located.
+<pre>
+python download_rea_gdf.py -can TI -com 5192
+</pre>
+
+Estimate the demand (SH and DHW) for every building in the area.
+<pre>
+python post_process_gdf.py -com 5192
+</pre>
+
+
+Define a radius in meters from the address, and a maximum number of users in the network.  
+Identify the users in the defined area.  
+Create the topology of the network.  
+Plot the results.  
+Print the main KPIs.  
+<pre>
+python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 100 -n 10
+</pre>
+
+
 
 # Future developments
 
