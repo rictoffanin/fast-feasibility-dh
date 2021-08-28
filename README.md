@@ -29,10 +29,23 @@ The map of the area with the users and the network is produced, and the main KPI
 python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 100 -n 10
 </pre>
 
+# What to do next
+1. Integrate the 
+# Parameters
+The ultimate goal of the tool is to identify, given a starting address and buffer radius or a location, possible clusters
+of buildings where the feasibility of micro DHC networks is higher 
+than the installation of individual buildings.
 
+The main parameters to identify a possible area are:
+- land heat density above a certain threshold;
+- building heat density above a certain threshold;
+- availability of heat source for heat pumps (waste-water, geothermal, body of water)
+
+After this the building with the highest consumption is chosen as the central plant.
+Fast economic calculations are performed, e.g. LCOH based on investment cost per land 
+heat density or length of the network versus individual heat pumps per every building.
 
 # Future developments
-
 1. Automatize the procedure
 2. Analyze different scenarios and find the optimum
 
