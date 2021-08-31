@@ -34,7 +34,7 @@ def read_param(fn):
     return param
 
 
-def clusterize(buildings, commune, radius, point, n):
+def clusterize(buildings, commune, radius, point, n, type_dhn):
 
     buildings = buildings.loc[buildings["fab_tot"] > 0].copy()
 
@@ -45,6 +45,9 @@ def clusterize(buildings, commune, radius, point, n):
 
     buildings["distance"] = buildings['geometry'].distance(point.loc[0, 'geometry'])
     buildings.sort_values("fab_tot", inplace=True, ascending=False, ignore_index=True)
+
+    if type_dhn == "LTDHN":
+        buildings = buildings.loc[buildings["k_SH"] < 60]
 
     cluster = buildings.loc[buildings["distance"] < radius].copy()
     cluster = cluster.head(n)
@@ -67,7 +70,7 @@ def clusterize(buildings, commune, radius, point, n):
     parentDir = os.path.dirname(fileDir)
 
     folder = "\\output\\processed_data"
-    filename = fileDir + folder + "\\cluster-%s.geojson" % commune
+    filename = fileDir + folder + "\\cluster-%s-%s.geojson" % (commune, type_dhn)
     cluster.to_file(filename, driver="GeoJSON", show_bbox=True, indent=4)
 
 

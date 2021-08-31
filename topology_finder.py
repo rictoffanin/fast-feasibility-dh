@@ -342,11 +342,18 @@ if __name__ == "__main__":
     b = gpd.GeoDataFrame(temp, crs='epsg:21781')
     # print(b.head())
 
-    clusterize(b, gmd, radius, p, n_max)
+    type = "HTDHN"
+    clusterize(b, gmd, radius, p, n_max, type)
 
-    fn = "cluster-5192.geojson"
+    fn = "cluster-%s-%s.geojson" % (gmd, type)
     c, lhd = network_finder(fn, address, radius)
     economic_calc(c, lhd)
 
+    type = "LTDHN"
+    clusterize(b, gmd, radius, p, n_max, type)
+
+    fn = "cluster-%s-%s.geojson" % (gmd, type)
+    c, lhd = network_finder(fn, address, radius)
+    economic_calc(c, lhd)
 
     print('\nProgram ended\n')
