@@ -143,6 +143,7 @@ def network_finder(filename, address, distance):
 
     spatial_heat_density = spatial_heat_density*10  # conversion to MWh / m2
     # print("The value should be higher than 70 kWh/m2 per year.")
+    print("")
     if spatial_heat_density < 100:
         if building_heat_density < 40:
             print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS")
@@ -168,7 +169,8 @@ def network_finder(filename, address, distance):
     print("The length of the network is", "{:.2f}".format(network['geometry'].length.sum() / 1000), "km")
     print("The longest generator-user path is is", "{:.2f}".format(route_geom['length_m'].max()), "m")
 
-    print("The heat density of the network is", "{:.2f}".format(cluster['fab_tot'].sum() / 1000 / network['geometry'].length.sum()), "MWh/m")
+    linear_heat_density = cluster['fab_tot'].sum() / network['geometry'].length.sum()
+    print("The heat density of the network is", "{:.2f}".format(linear_heat_density/1000), "MWh/m")
     print("This value should be higher than 2.0 MWh/m")
 
     print("The heat density of the network is",
@@ -197,13 +199,15 @@ def network_finder(filename, address, distance):
     ax = route_geom['origin'].plot(ax=ax, markersize=128, color='black')
     # plt.show()
 
-    return cluster
+    return cluster, linear_heat_density
 
 
-def economic_calc(cluster):
+def economic_calc(cluster, lhd):
 
     p_individual = cluster.loc[0, 'P_tot']
     q_individual = cluster.loc[0, 'fab_tot']
+    p_network = cluster['P_tot'].sum()  # todo: add concurrency factor
+    q_network = cluster['fab_tot'].sum()
 
     c_inv_oil = 945  # CHF/kW_th
     k_inst_oil = 0.270  # 27% of the total investment cost
@@ -264,6 +268,20 @@ def economic_calc(cluster):
     print("\nLCOH for WSHP")
     lcoh_calc(c_inv_wshp(p_individual) * p_individual, k_OandM_wshp, p_wshp, eta_wshp, q_individual, lt_wshp)
 
+    # todo: calcola un cluster per ltdh e uno per htdh
+    i_dis = dis_cost_calc(lhd, q_network)
+    i_prod = c_inv_wshp(p_network) * p_network * 2
+    i_aux = 0.18*q_network
+    i_con = 0.03*q_network
+    i_dhn = i_prod + i_dis + i_aux + i_con
+    k_OandM_dhn = 0.04
+    eta_dhn = 4.00
+    lt_dhn = 40
+    p_dhn = p_ashp*0.8
+
+    print("\nLCOH for DHN")
+    lcoh_calc(i_dhn, k_OandM_dhn, p_dhn, eta_dhn, q_network, lt_dhn)
+
 
 def lcoh_calc(inv, k_OandM, p_e, eta, q, lt, r=0.03):
 
@@ -281,11 +299,19 @@ def annuity(lt, r=0.03):
     return num / den
 
 
-def net_diam(LHD):
-    LHD = LHD / 3600  # kWh/m to GJ/m
-    return 0.0486*np.log(LHD) + 0.0007
+def net_diam(lhd):
+    lhd = lhd * (pow(10, 6) / 3600)  # kWh/m to GJ/m
+    return 0.0486 * np.log(lhd) + 0.0007
 
 
+def dis_cost_calc(lhd, q):
+    c1 = 315  # CHF/m
+    c2 = 2224  # CHF/m
+    k_loss = 0.08
+    a = annuity(40)
+    d_ave = net_diam(lhd)
+
+    return (a*(c1+c2*d_ave)) / lhd * q * (1 + k_loss)
 
 
 # Main
@@ -319,8 +345,8 @@ if __name__ == "__main__":
     clusterize(b, gmd, radius, p, n_max)
 
     fn = "cluster-5192.geojson"
-    c = network_finder(fn, address, radius)
-    economic_calc(c)
+    c, lhd = network_finder(fn, address, radius)
+    economic_calc(c, lhd)
 
 
     print('\nProgram ended\n')
