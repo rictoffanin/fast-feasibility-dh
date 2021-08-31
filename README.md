@@ -29,8 +29,6 @@ The map of the area with the users and the network is produced, and the main KPI
 python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 100 -n 10
 </pre>
 
-# What to do next
-1. Integrate the 
 # Parameters
 The ultimate goal of the tool is to identify, given a starting address and buffer radius or a location, possible clusters
 of buildings where the feasibility of micro DHC networks is higher 

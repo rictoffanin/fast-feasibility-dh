@@ -56,11 +56,12 @@ def get_demand_coefficients():
     # reading consumption data for SH and DHW per type of building and construction time
     data_sh = pd.read_csv(filename+"\\demand_SH.csv", header=0, index_col=0)
     data_dhw = pd.read_csv(filename+"\\demand_DHW.csv", header=0, index_col=0)
+    fehh = pd.read_csv(filename+"\\fehh.csv", header=0, index_col=0)
 
-    return data_sh, data_dhw
+    return data_sh, data_dhw, fehh
 
 
-def post_processing(buildings, data_sh, data_dhw, COMMUNE):
+def post_processing(buildings, data_sh, data_dhw, fehh, COMMUNE):
 
     print("Post-processing the raw data file.")
     # renaming the columns of the dataframe
@@ -80,6 +81,8 @@ def post_processing(buildings, data_sh, data_dhw, COMMUNE):
             zip(buildings['epoca_costruzione'], buildings['classe'])]
     k_DHW = [data_dhw.at[int(iRow), str(int(iCol))] for iRow, iCol in
              zip(buildings['epoca_costruzione'], buildings['classe'])]
+    k_fehh = [fehh.at[int(iRow), str(int(iCol))] for iRow, iCol in
+             zip(buildings['epoca_costruzione'], buildings['classe'])]
 
     print("Calculating the demand of the buildings.")
     # calculating building attributes and demand
@@ -89,6 +92,7 @@ def post_processing(buildings, data_sh, data_dhw, COMMUNE):
     buildings['k_DHW'] = k_DHW
     buildings['fab_DHW'] = k_DHW*buildings['SRE']
     buildings['fab_tot'] = buildings['fab_SH'] + buildings['fab_DHW']
+    buildings['P_tot'] = buildings['fab_tot'] / k_fehh
 
     # saving the results in a .csv file
     absFilePath = os.path.abspath(__file__)
@@ -120,6 +124,6 @@ if __name__ == "__main__":
     b = get_dataframe_gdf(commune)
     # print(b)
 
-    b = post_processing(b, k[0], k[1], commune)
+    b = post_processing(b, k[0], k[1], k[2], commune)
 
     print('\nProgram ended')

@@ -9,6 +9,7 @@ import os
 import argparse
 import pandas as pd
 from shapely import wkt
+import numpy as np
 
 # filename = "cluster-5192.geojson"
 # # place_name = "Lugano, Ticino, Switzerland"
@@ -16,7 +17,7 @@ from shapely import wkt
 # distance = 750
 
 
-def user_finder(filename, address, distance):
+def network_finder(filename, address, distance):
 
     absFilePath = os.path.abspath(__file__)
     fileDir = os.path.dirname(os.path.abspath(__file__))
@@ -60,8 +61,8 @@ def user_finder(filename, address, distance):
     # Geocode addresses using Nominatim. Remember to provide a custom "application name" in the user_agent parameter!
     # origin = geocode(address, provider='nominatim', user_agent='autogis_xx', timeout=4)
 
-    origin = origin_geo.geometry.values[0]
-    destination = cluster["geometry"].values[:]
+    origin = cluster["geometry"].values[0]
+    destination = cluster["geometry"].values[1:-1]
     destination = gpd.GeoSeries(destination)
 
     # Find the node in the graph that is closest to the origin point (node id)
@@ -132,17 +133,47 @@ def user_finder(filename, address, distance):
     route_geom['length_m'] = route_geom.length
 
     convex_hull = cluster['geometry'].unary_union.convex_hull
-    land_heat_density = cluster['fab_tot'].sum() / convex_hull.area
-    print("The land heat density of the cluster is", "{:.2f}".format(land_heat_density), "kWh/m2 =",
-          "{:.2f}".format(land_heat_density * 10), "MWh/ha")
-    print("The value should be higher than 350 MWh/ha.")
+    spatial_heat_density = cluster['fab_tot'].sum() / convex_hull.area
+    print("The land heat density of the cluster is", "{:.2f}".format(spatial_heat_density), "kWh/m2 =",
+          "{:.2f}".format(spatial_heat_density * 10), "MWh/ha")
+    # print("The value should be higher than 350 MWh/ha.")
 
-    building_heat_density = cluster['fab_tot'].sum() / cluster['SRE'].sum()
-    print("The building heat density of the cluster is", "{:.2f}".format(building_heat_density), "kWh/m2 per year")
-    print("The value should be higher than 70 kWh/m2 per year.")
+    building_heat_density = cluster['fab_tot'].max() / cluster.loc[cluster['fab_tot'].idxmax(), 'SRE']
+    print("The maximum specific heat demand of a building is", "{:.2f}".format(building_heat_density), "kWh/m2 per year")
+
+    spatial_heat_density = spatial_heat_density*10  # conversion to MWh / m2
+    # print("The value should be higher than 70 kWh/m2 per year.")
+    if spatial_heat_density < 100:
+        if building_heat_density < 40:
+            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS")
+        elif 40 <= building_heat_density <= 60:
+            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS/LTDH/HTDH")
+        elif building_heat_density > 60:
+            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS")
+    elif 100 <= spatial_heat_density >= 200:
+        if building_heat_density < 40:
+            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS/LTDH")
+        elif 40 <= building_heat_density <= 60:
+            print("The network might be suitable for LTDH/HTDH")
+        elif building_heat_density > 60:
+            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS/HTDH")
+    elif spatial_heat_density > 200:
+        if building_heat_density < 40:
+            print("The network might be suitable for LTDH")
+        elif 40 <= building_heat_density <= 60:
+            print("The network might be suitable for LTDH/HTDH")
+        elif building_heat_density > 60:
+            print("The network might be suitable for HTDH")
+
     print("The length of the network is", "{:.2f}".format(network['geometry'].length.sum() / 1000), "km")
+    print("The longest generator-user path is is", "{:.2f}".format(route_geom['length_m'].max()), "m")
+
     print("The heat density of the network is", "{:.2f}".format(cluster['fab_tot'].sum() / 1000 / network['geometry'].length.sum()), "MWh/m")
     print("This value should be higher than 2.0 MWh/m")
+
+    print("The heat density of the network is",
+          "{:.2f}".format(cluster['P_tot'].sum() / network['geometry'].length.sum()), "kW/m")
+    print("This value should be higher than 1.0 kW/m")
 
     # Plot edges and nodes
     ax = edges.plot(linewidth=0.75, color='gray')
@@ -164,12 +195,102 @@ def user_finder(filename, address, distance):
     route_geom['origin'] = route_geom['origin']
     ax = route_geom['destination'].plot(ax=ax, markersize=16, color='green')
     ax = route_geom['origin'].plot(ax=ax, markersize=128, color='black')
-    plt.show()
+    # plt.show()
+
+    return cluster
+
+
+def economic_calc(cluster):
+
+    p_individual = cluster.loc[0, 'P_tot']
+    q_individual = cluster.loc[0, 'fab_tot']
+
+    c_inv_oil = 945  # CHF/kW_th
+    k_inst_oil = 0.270  # 27% of the total investment cost
+    k_equip_oil = 1 - k_inst_oil  # 73% of the total investment cost
+    k_OandM_oil = 0.025  # 2.5% of total investment cost per year
+    eta_oil = 0.83
+    lt_oil = 20  # lifetime of the gas boiler
+    p_oil = 0.078  # CHF/kWh
+
+    print("\nLCOH for individual oil boiler")
+    lcoh_calc(c_inv_oil*p_individual, k_OandM_oil, p_oil, eta_oil, q_individual, lt_oil)
+
+    c_inv_gas = 945  # CHF/kW_th
+    k_inst_gas = 0.270  # 27% of the total investment cost
+    k_equip_gas = 1 - k_inst_gas  # 73% of the total investment cost
+    k_OandM_gas = 0.025  # 2.5% of total investment cost per year
+    eta_gas = 0.87
+    lt_gas = 20  # lifetime of the gas boiler
+    p_gas = 0.087
+
+    print("\nLCOH for individual gas boiler")
+    lcoh_calc(c_inv_gas*p_individual, k_OandM_gas, p_gas, eta_gas, q_individual, lt_gas)
+
+    c_inv_ashp = lambda x: 14677 * pow(x, -0.683)
+    p_max_ashp = 50  # kW
+    k_inst_ashp = 0.270
+    k_equip_ashp = 1 - k_inst_ashp
+    k_OandM_ashp = 0.01  # 1% of the total investment cost per year
+    eta_ashp = 3.00
+    p_ashp = 0.201
+    lt_ashp = 25  # years
+
+    p_inv = max(p_individual, p_max_ashp)
+    print("\nLCOH for ASHP")
+    lcoh_calc(c_inv_ashp(p_inv) * p_individual, k_OandM_ashp, p_ashp, eta_ashp, q_individual, lt_ashp)
+
+    c_inv_gshp = lambda x: 15962 * pow(x, -0.259)
+    p_max_gshp = 500  # kW
+    k_inst_gshp = 0.270
+    k_equip_gshp = 1 - k_inst_ashp
+    k_OandM_gshp = 0.01  # 1% of the total investment cost per year
+    eta_gshp = 3.70
+    lt_gshp = 25  # years
+    p_gshp = p_ashp
+
+    print("\nLCOH for GSHP")
+    lcoh_calc(c_inv_gshp(p_individual) * p_individual, k_OandM_gshp, p_gshp, eta_gshp, q_individual, lt_gshp)
+
+    c_inv_wshp = lambda x: 16625 * pow(x, -0.321)
+    p_max_wshp = 500  # kW
+    k_inst_wshp = 0.270
+    k_equip_wshp = 1 - k_inst_ashp
+    k_OandM_wshp = 0.01  # 1% of the total investment cost per year
+    eta_wshp = 4.00
+    lt_wshp = 25  # years
+    p_wshp = p_ashp
+
+    print("\nLCOH for WSHP")
+    lcoh_calc(c_inv_wshp(p_individual) * p_individual, k_OandM_wshp, p_wshp, eta_wshp, q_individual, lt_wshp)
+
+
+def lcoh_calc(inv, k_OandM, p_e, eta, q, lt, r=0.03):
+
+    a = annuity(lt, r)
+    e = q*p_e / eta
+    lcoh = (a*inv + inv*k_OandM + e) / q
+    print("The LCOH is", "{:.3f}".format(lcoh), "CHF/kWh")
+    return lcoh
+
+
+def annuity(lt, r=0.03):
+
+    num = pow(1+r, lt) * r
+    den = pow(1+r, lt) - 1
+    return num / den
+
+
+def net_diam(LHD):
+    LHD = LHD / 3600  # kWh/m to GJ/m
+    return 0.0486*np.log(LHD) + 0.0007
+
+
 
 
 # Main
 if __name__ == "__main__":
-    # python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 100 -n 10
+    # python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 1000 -n 10
 
     from user_finder import com_num, clusterize
 
@@ -198,6 +319,8 @@ if __name__ == "__main__":
     clusterize(b, gmd, radius, p, n_max)
 
     fn = "cluster-5192.geojson"
-    user_finder(fn, address, radius)
+    c = network_finder(fn, address, radius)
+    economic_calc(c)
+
 
     print('\nProgram ended\n')
