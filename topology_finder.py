@@ -10,6 +10,7 @@ import argparse
 import pandas as pd
 from shapely import wkt
 import numpy as np
+import contextily as cx
 
 # filename = "cluster-5192.geojson"
 # # place_name = "Lugano, Ticino, Switzerland"
@@ -28,7 +29,7 @@ def network_finder(filename, address, distance):
     # area.to_crs(CRS.from_epsg(21781), inplace=True)
 
     # Fetch OSM street network from the location
-    graph = ox.graph_from_address(address, simplify=False, retain_all=True, dist=distance+250, network_type='walk')
+    graph = ox.graph_from_address(address, simplify=False, retain_all=True, dist=distance+250)
     # Project the data
     graph = ox.project_graph(graph, to_crs=CRS.from_epsg(21781))
 
@@ -39,7 +40,7 @@ def network_finder(filename, address, distance):
     nodes.to_crs(CRS.from_epsg(21781), inplace=True)
     edges.to_crs(CRS.from_epsg(21781), inplace=True)
 
-    # List key-value pairs for tags
+    # tags for buildings
     tags = {'building': True}
     # Retrieve buildings with a defined distance in meters from address
     buildings = ox.geometries_from_address(address, tags, dist=distance+250)
@@ -47,9 +48,8 @@ def network_finder(filename, address, distance):
     buildings.to_crs(CRS.from_epsg(21781), inplace=True)
 
     # Read the file containing the info regarding the buildings
-    # todo: filename should be an input
-    filename = fileDir + "\\output\\processed_data\\" + filename
-    cluster = gpd.read_file(filename, driver="GeoJSON")
+    fn = fileDir + "\\output\\raw_data\\" + filename
+    users = gpd.read_file(fn, driver="GeoJSON")
 
     orig_coords = ox.geocoder.geocode(address)  # (lat, lng) but gpd accepts (lng, lat)
     orig_point = Point([orig_coords[1], orig_coords[0]])
@@ -61,8 +61,8 @@ def network_finder(filename, address, distance):
     # Geocode addresses using Nominatim. Remember to provide a custom "application name" in the user_agent parameter!
     # origin = geocode(address, provider='nominatim', user_agent='autogis_xx', timeout=4)
 
-    origin = cluster["geometry"].values[0]
-    destination = cluster["geometry"].values[1:-1]
+    origin = users["geometry"].values[0]  # origin_geo["geometry"].values[0]
+    destination = users["geometry"].values[1:-1]
     destination = gpd.GeoSeries(destination)
 
     # Find the node in the graph that is closest to the origin point (node id)
@@ -85,7 +85,7 @@ def network_finder(filename, address, distance):
         route[idx] = [orig_node_id[idx], orig_node_id[idx]]
         # destination.loc[idx] = origin.loc[0]
         destination.loc[idx] = origin
-        cluster.drop(idx)
+        users.drop(idx, inplace=True)
 
     # Retrieve the rows from the nodes GeoDataFrame based on the node id (node id is the index label)
     orig_node = nodes.loc[orig_node_id]
@@ -132,75 +132,100 @@ def network_finder(filename, address, distance):
     # calculate the route length
     route_geom['length_m'] = route_geom.length
 
-    convex_hull = cluster['geometry'].unary_union.convex_hull
-    spatial_heat_density = cluster['fab_tot'].sum() / convex_hull.area
+    convex_hull = users['geometry'].unary_union.convex_hull
+    spatial_heat_density = users['fab_tot'].sum() / convex_hull.area
     print("The land heat density of the cluster is", "{:.2f}".format(spatial_heat_density), "kWh/m2 =",
           "{:.2f}".format(spatial_heat_density * 10), "MWh/ha")
     # print("The value should be higher than 350 MWh/ha.")
 
-    building_heat_density = cluster['fab_tot'].max() / cluster.loc[cluster['fab_tot'].idxmax(), 'SRE']
+    building_heat_density = users['fab_tot'].max() / users.loc[users['fab_tot'].idxmax(), 'SRE']
     print("The maximum specific heat demand of a building is", "{:.2f}".format(building_heat_density), "kWh/m2 per year")
 
     spatial_heat_density = spatial_heat_density*10  # conversion to MWh / m2
     # print("The value should be higher than 70 kWh/m2 per year.")
-    print("")
-    if spatial_heat_density < 100:
-        if building_heat_density < 40:
-            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS")
-        elif 40 <= building_heat_density <= 60:
-            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS/LTDH/HTDH")
-        elif building_heat_density > 60:
-            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS")
-    elif 100 <= spatial_heat_density >= 200:
-        if building_heat_density < 40:
-            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS/LTDH")
-        elif 40 <= building_heat_density <= 60:
-            print("The network might be suitable for LTDH/HTDH")
-        elif building_heat_density > 60:
-            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS/HTDH")
-    elif spatial_heat_density > 200:
-        if building_heat_density < 40:
-            print("The network might be suitable for LTDH")
-        elif 40 <= building_heat_density <= 60:
-            print("The network might be suitable for LTDH/HTDH")
-        elif building_heat_density > 60:
-            print("The network might be suitable for HTDH")
 
     print("The length of the network is", "{:.2f}".format(network['geometry'].length.sum() / 1000), "km")
     print("The longest generator-user path is is", "{:.2f}".format(route_geom['length_m'].max()), "m")
 
-    linear_heat_density = cluster['fab_tot'].sum() / network['geometry'].length.sum()
+    linear_heat_density = users['fab_tot'].sum() / network['geometry'].length.sum()
     print("The heat density of the network is", "{:.2f}".format(linear_heat_density/1000), "MWh/m")
     print("This value should be higher than 2.0 MWh/m")
 
     print("The heat density of the network is",
-          "{:.2f}".format(cluster['P_tot'].sum() / network['geometry'].length.sum()), "kW/m")
+          "{:.2f}".format(users['P_tot'].sum() / network['geometry'].length.sum()), "kW/m")
     print("This value should be higher than 1.0 kW/m")
 
+    # todo: plot in a another function
+    edges_wm = edges.to_crs(epsg=3857)
+    nodes_wm = nodes.to_crs(epsg=3857)
+    buildings_wm = buildings.to_crs(epsg=3857)
+    cluster_wm = users.to_crs(epsg=3857)
+    network_wm = network.to_crs(epsg=3857)
+    route_geom_wm = route_geom.to_crs(epsg=3857)
+    dest_nodes_wm = dest_nodes.to_crs(epsg=3857)
+    orig_nodes_wm = orig_nodes.to_crs(epsg=3857)
+    origin_geo_wm = origin_geo.to_crs(epsg=3857)
+    destination_wm = destination.to_crs(epsg=3857)
+
+    # define figure and subplots
+    fig, ax = plt.subplots()
+
     # Plot edges and nodes
-    ax = edges.plot(linewidth=0.75, color='gray')
-    ax = nodes.plot(ax=ax, markersize=2, color='gray')
+    # ax = edges_wm.plot(linewidth=0.75, color='gray')
+    # ax = nodes_wm.plot(ax=ax, markersize=2, color='gray')
 
     # Add buildings
-    ax = buildings.plot(ax=ax, facecolor='khaki', alpha=0.7)
+    ax = buildings_wm.plot(ax=ax, facecolor='khaki', alpha=0.01)
 
-    # ax = cluster.plot(ax=ax, markersize=24)
+    ax = cluster_wm.plot(ax=ax, markersize=24)
 
     # Add the route
-    # ax = route_geom.plot(ax=ax, linewidth=1, linestyle='--', color='red')
-    ax = network.plot(ax=ax, linewidth=2, linestyle='--', color='red')
+    ax = route_geom_wm.plot(ax=ax, linewidth=1, linestyle='--', color='red')
+    # ax = network_wm.plot(ax=ax, linewidth=2, linestyle='--', color='red')
     network['length'] = network['geometry'].length
 
     # Add the origin and destination nodes of the route
-    # ax = dest_nodes.plot(ax=ax, markersize=12, color='green')
-    # ax = orig_nodes.plot(ax=ax, markersize=48, color='black')
-    route_geom['origin'] = route_geom['origin']
-    ax = route_geom['destination'].plot(ax=ax, markersize=16, color='green')
-    ax = route_geom['origin'].plot(ax=ax, markersize=128, color='black')
-    # plt.show()
+    # ax = dest_nodes_wm.plot(ax=ax, markersize=12, color='green')
+    # ax = orig_nodes_wm.plot(ax=ax, markersize=48, color='black')
 
-    return cluster, linear_heat_density
+    ax = destination_wm.plot(ax=ax, markersize=16, color='green')
+    ax = origin_geo_wm.plot(ax=ax, markersize=128, color='black')
 
+    cx.add_basemap(ax, source=cx.providers.OpenStreetMap.CH)
+    # ax.set_axis_off()
+    plt.show()
+
+    folder = "\\output\\processed_data\\"
+    fn = fileDir + folder + filename
+    users.to_file(fn, driver="GeoJSON", show_bbox=True, indent=4)
+
+    return users, linear_heat_density
+
+
+def suitability(shd, bhd):
+
+    print("")
+    if shd < 100:
+        if bhd < 40:
+            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS")
+        elif 40 <= bhd <= 60:
+            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS/LTDH/HTDH")
+        elif bhd > 60:
+            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS")
+    elif 100 <= shd >= 200:
+        if bhd < 40:
+            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS/LTDH")
+        elif 40 <= bhd <= 60:
+            print("The network might be suitable for LTDH/HTDH")
+        elif bhd > 60:
+            print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS/HTDH")
+    elif shd > 200:
+        if bhd < 40:
+            print("The network might be suitable for LTDH")
+        elif 40 <= bhd <= 60:
+            print("The network might be suitable for LTDH/HTDH")
+        elif bhd > 60:
+            print("The network might be suitable for HTDH")
 
 def economic_calc(cluster, lhd):
 
@@ -335,7 +360,7 @@ if __name__ == "__main__":
 
     gmd, p = com_num(address)
     fileDir = os.path.dirname(os.path.abspath(__file__))
-    fp = fileDir + "\\output\\processed_data\\data-" + str(gmd) + ".csv"
+    fp = fileDir + "\\output\\raw_data\\data-" + str(gmd) + ".csv"
 
     temp = pd.read_csv(fp, sep=";", index_col='index')
     temp['geometry'] = temp['geometry'].apply(wkt.loads)
