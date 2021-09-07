@@ -185,7 +185,7 @@ def gdf_to_file(gdf, commune):
     filename_csv = fileDir + folder + "\\raw-gdf-%s.csv" % commune
     gdf.to_csv(filename_csv)
 
-    print("The dataframe containing the raw data was written to: " + fileDir + "\\" + filename_json)
+    print("The dataframe containing the raw data was written to:", filename_json)
 
     return gdf
 
@@ -194,7 +194,7 @@ def gdf_to_file(gdf, commune):
 
 # Main
 if __name__ == "__main__":
-    # python download_rea_gdf.py -can TI -com 5195
+    # python download_rea_gdf.py -can TI -com 5192
 
     print('\nProgram started\n')
 
