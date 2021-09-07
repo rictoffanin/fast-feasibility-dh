@@ -189,8 +189,6 @@ def gdf_to_file(gdf, commune):
 
     return gdf
 
-# todo: aggiungere la creazione di un immagine con gli edifici colorati per consumo
-
 
 # Main
 if __name__ == "__main__":
