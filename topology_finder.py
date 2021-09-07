@@ -12,11 +12,6 @@ from shapely import wkt
 import numpy as np
 import contextily as cx
 
-# filename = "cluster-5192.geojson"
-# # place_name = "Lugano, Ticino, Switzerland"
-# address = "Via La Santa 15, Lugano, Ticino, Switzerland"
-# distance = 750
-
 
 def network_finder(filename, address, distance):
 
@@ -248,8 +243,6 @@ def suitability(shd, bhd):
             out_str = "HTDH"
 
     return out_str
-
-
 
 
 
