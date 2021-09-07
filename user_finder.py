@@ -74,10 +74,17 @@ def clusterize(buildings, commune, radius, point, n, type_dhn):
     cluster.to_file(filename, driver="GeoJSON", show_bbox=True, indent=4)
 
 
+def check_origin_within(pnt, df):
+    convex_hull = df['geometry'].unary_union.convex_hull
+    assert pnt.within(convex_hull), "Address is not within the area (convex hull) of the buildings"
+
+
 # Main
 if __name__ == "__main__":
-    # python user_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 100 -n 10
+    # python user_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 250 -n 10 -t LTDH
 
+    # fixme: given a file with processed data, check if the address is within the area, then find the most suitable
+    #  users for the type of the network within the radius
     print('\nProgram started\n')
 
     # Input args
@@ -85,13 +92,13 @@ if __name__ == "__main__":
     arg_parser.add_argument('-addr', help='address of the generation plant')
     arg_parser.add_argument('-r', help='radius in meters around the generation plant', type=float)
     arg_parser.add_argument('-n', help='maximum number of customers in the network', type=int)
-    # arg_parser.add_argument('-com', help='commune: number of the Swiss official commune register')
+    arg_parser.add_argument('-t', help='type: low-temperature (LTDHN) or high-temperature (HTDHN) district heating')
 
     args = arg_parser.parse_args()
     address = args.addr
     radius = args.r
     n_max = args.n
-    # commune = args.com
+    type = args.t
 
     gmd, p = com_num(address)
     fileDir = os.path.dirname(os.path.abspath(__file__))
@@ -100,8 +107,9 @@ if __name__ == "__main__":
     temp = pd.read_csv(fp, sep=";", index_col='index')
     temp['geometry'] = temp['geometry'].apply(wkt.loads)
     b = gpd.GeoDataFrame(temp, crs='epsg:21781')
-    # print(b.head())
 
-    clusterize(b, gmd, radius, p, n_max)
+    check_origin_within(p, b)
+
+    clusterize(b, gmd, radius, p, n_max, type)
 
     print('\nProgram ended\n')

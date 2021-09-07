@@ -41,6 +41,7 @@ def commune_number_from_address(address):
     temp = json.loads(res.text)
     gmd_nbr = temp['results'][0]['id']
     print("The official municipality number of the address", address, "is", gmd_nbr)
+    geo = geo.to_crs(epsg=21781)
     orig_point = geo.loc[0, 'geometry']
 
     return gmd_nbr, orig_point
