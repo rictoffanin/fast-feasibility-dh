@@ -26,7 +26,7 @@ def network_finder(file_suffix, addr, distance):
     # area.to_crs(CRS.from_epsg(21781), inplace=True)
 
     # Fetch OSM street network from the location
-    graph = ox.graph_from_address(addr, simplify=False, retain_all=True, dist=distance + 250, network_type="all_private")
+    graph = ox.graph_from_address(addr, simplify=False, retain_all=True, dist=distance+50, network_type="all_private")
     # Project the data
     graph = ox.project_graph(graph, to_crs=CRS.from_epsg(21781))
 
@@ -48,17 +48,23 @@ def network_finder(file_suffix, addr, distance):
     fn = fileDir + "\\output\\results\\" + "cluster" + file_suffix + ".geojson"
     users = gpd.read_file(fn, driver="GeoJSON")
 
+    # geocoding the address
     orig_coords = ox.geocoder.geocode(addr)  # (lat, lng) but gpd accepts (lng, lat)
+
+    # creating a shapely Point object from the coordinates
     orig_point = Point([orig_coords[1], orig_coords[0]])
 
-    origin_geo = gpd.GeoDataFrame({'geometry': [orig_point]})
-    origin_geo.set_crs(4326, inplace=True)
-    # Project the origin
-    origin_geo.to_crs(21781, inplace=True)
-    # Geocode addresses using Nominatim. Remember to provide a custom "application name" in the user_agent parameter!
-    # origin = geocode(address, provider='nominatim', user_agent='autogis_xx', timeout=4)
+    # creating a GDF from the the origin point for easy plotting
+    # origin_geo = gpd.GeoDataFrame({'geometry': [orig_point]}, crs=4326)
+    # project the origin
+    # origin_geo.to_crs(21781, inplace=True)
 
-    origin = origin_geo["geometry"].values[0]  # users["geometry"].values[0]
+    # the origin is the building closest to the geocoded address
+    origin = users["geometry"].values[users['distance'].idxmin()]
+    # creating a GDF from the origin for easier plotting
+    origin_geo = gpd.GeoDataFrame({'geometry': [origin]}, crs=21781)
+
+    # defining the location of the users as the destinations
     destination = users["geometry"].values[:]
     destination = gpd.GeoSeries(destination)
 
@@ -79,9 +85,9 @@ def network_finder(file_suffix, addr, distance):
 
     # workaround for creating fake paths for user with no path found
     for idx in index:
-        route[idx] = [orig_node_id[idx], orig_node_id[idx]]
+        # route[idx] = [orig_node_id[idx], orig_node_id[idx]]
         # destination.loc[idx] = origin.loc[0]
-        destination.loc[idx] = origin
+        # destination.loc[idx] = origin
         users.drop(idx, inplace=True)
 
     # Retrieve the rows from the nodes GeoDataFrame based on the node id (node id is the index label)
@@ -118,60 +124,16 @@ def network_finder(file_suffix, addr, distance):
 
     # creating geodataframe containing the branches of the network
     network = gpd.GeoDataFrame(network, columns=['geometry'], crs=nodes.crs)
-
-    # creating a geodataframe with the linestring of every paths from origin to destination
-    route_geom = gpd.GeoDataFrame(r_od, crs=edges.crs, columns=['geometry'])
-
-    # adding origin & destination
-    route_geom['origin'] = origin_geo.geometry
-    route_geom['destination'] = destination
-
     # calculate the route length
-    route_geom['length_m'] = route_geom.length
-
-    convex_hull = users['geometry'].unary_union.convex_hull
-    shd = users['fab_tot'].sum() / convex_hull.area
-
-    # print("The land heat density of the cluster is", "{:.2f}".format(shd), "kWh/m2 =",
-    #       "{:.2f}".format(shd * 10), "MWh/ha")
-    # print("The value should be higher than 350 MWh/ha.")
-
-    bhd_max = users['fab_tot'].max() / users.loc[users['fab_tot'].idxmax(), 'SRE']
-    bhd_ave = users['fab_tot'].sum() / users['SRE'].sum()
-
-    # print("The maximum specific heat demand of a building is", "{:.2f}".format(bhd_max), "kWh/m2 per year")
-
-    shd = shd * 10  # conversion to MWh / m2
-    # print("The value should be higher than 70 kWh/m2 per year.")
-
-    # print("The length of the network is", "{:.2f}".format(network['geometry'].length.sum() / 1000), "km")
-    # print("The longest generator-user path is is", "{:.2f}".format(route_geom['length_m'].max()), "m")
-
-    lhd_energy = users['fab_tot'].sum() / network['geometry'].length.sum()
-    # print("The heat density of the network is", "{:.2f}".format(lhd_energy / 1000), "MWh/m")
-    # print("This value should be higher than 2.0 MWh/m")
-
-    lhd_power = users['P_tot'].sum() / network['geometry'].length.sum()
-    # print("The heat density of the network is",
-    #       "{:.2f}".format(lhd_power), "kW/m")
-    # print("This value should be higher than 1.0 kW/m")
-
-    # todo: modify the name to match the cluster filename
-    res = suitability(shd, bhd_ave)
-    dict_kpi = {'bhd': bhd_ave, 'shd': shd, 'lhd_energy': lhd_energy, 'lhd_power': lhd_power, "suitable-for": res}
-    # todo: aggiungi altri kpi al dataframe
-    # origin point, radius, number of buildings, length of the network, land area, building area, costs
-
-    kpi = pd.DataFrame([dict_kpi], index=['HTDH'])
-
-    folder_name = "\\output\\topology\\"
-    fn = fileDir + folder_name + "\\network-kpi.csv"
-    kpi.to_csv(fn, sep=";", encoding='utf-8-sig', index_label='index')
-
     network['length'] = network['geometry'].length
 
-    users["path"] = route_geom["geometry"]
-    users["path_length"] = route_geom["length_m"]
+    # creating a geodataframe with the linestring of every paths from origin to destination
+    paths = gpd.GeoDataFrame(r_od, crs=edges.crs, columns=['geometry'])
+    # calculate the route length
+    paths['length_m'] = paths.length
+
+    users["path"] = paths["geometry"]
+    users["path_length"] = paths["length_m"]
 
     folder_name = "\\output\\topology\\"
     fn = fileDir + folder_name + "users" + file_suffix + ".geojson"
@@ -187,7 +149,40 @@ def network_finder(file_suffix, addr, distance):
     fn = fileDir + folder_name + "network" + file_suffix + ".csv"
     network.to_csv(fn, sep=";", encoding='utf-8-sig', index_label='index')
 
-    return users, lhd_energy
+    plot(edges, nodes, buildings, users, network, paths, dest_nodes, orig_nodes, origin_geo, destination)
+    return users
+
+
+def kpi_calc(users, network, type_dhn):
+
+    # the convex hull of the users is used to calculate the land area
+    convex_hull = users['geometry'].unary_union.convex_hull
+    land_area = convex_hull.area
+
+    # calculating the SPATIAL HEAT DENSITY (SHD) in kWh/m2 per year
+    shd = users['fab_tot'].sum() / land_area
+    shd = shd * 10  # conversion to MWh / ha
+
+    # calculating the maximum BUILDING HEAT DENSITY in kWh/m2 per year
+    bhd_max = users['fab_tot'].max() / users.loc[users['fab_tot'].idxmax(), 'SRE']
+    # calculating the average BUILDING HEAT DENSITY in kWh/m2 per year
+    bhd_ave = users['fab_tot'].sum() / users['SRE'].sum()
+
+    # calculating the LINEAR HEAT DENSITY in kWh/m
+    lhd_energy = users['fab_tot'].sum() / network['geometry'].length.sum()
+    # calculating the LINEAR HEAT DENSITY in kW/m
+    lhd_power = users['P_tot'].sum() / network['geometry'].length.sum()
+
+    res = suitability(shd, bhd_ave)
+    dict_kpi = {'bhd': bhd_ave, 'shd': shd, 'lhd_energy': lhd_energy, 'lhd_power': lhd_power, "suitable-for": res}
+    # todo: aggiungi altri kpi al dataframe
+    # origin point, radius, number of buildings, length of the network, land area, building area, costs
+
+    kpi = pd.DataFrame([dict_kpi], index=[type_dhn])
+
+    folder_name = "\\output\\topology\\"
+    fn = fileDir + folder_name + "\\network-kpi.csv"
+    kpi.to_csv(fn, sep=";", encoding='utf-8-sig', index_label='index')
 
 
 def plot(edges, nodes, buildings, users, network, route_geom, dest_nodes, orig_nodes, origin_geo, destination):
@@ -211,23 +206,23 @@ def plot(edges, nodes, buildings, users, network, route_geom, dest_nodes, orig_n
     # ax = nodes_wm.plot(ax=ax, markersize=2, color='gray')
 
     # add buildings from OpenStreetMap
-    ax = buildings_wm.plot(ax=ax, facecolor='khaki', alpha=0.01)
+    ax = buildings_wm.plot(ax=ax, facecolor='khaki', alpha=0.00)
 
     # add cluster of users
-    ax = cluster_wm.plot(ax=ax, markersize=24, color='red')
+
+    ax = cluster_wm.plot(ax=ax, markersize=32, color='forestgreen')
 
     # add the route
-    ax = route_geom_wm.plot(ax=ax, linewidth=1, linestyle='--', color='red')
-    # ax = network_wm.plot(ax=ax, linewidth=2, linestyle='--', color='red')
+    # ax = route_geom_wm.plot(ax=ax, linewidth=4, linestyle='--', color='red')
+    ax = network_wm.plot(ax=ax, linewidth=2, linestyle='solid', color='darkred')
 
     # add the origin and destination nodes of the route
     # ax = dest_nodes_wm.plot(ax=ax, markersize=12, color='green')
     # ax = orig_nodes_wm.plot(ax=ax, markersize=48, color='black')
+    ax = origin_geo_wm.plot(ax=ax, markersize=64, color='black')
+    # ax = destination_wm.plot(ax=ax, markersize=1, color='green')
 
-    ax = destination_wm.plot(ax=ax, markersize=16, color='green')
-    ax = origin_geo_wm.plot(ax=ax, markersize=128, color='black')
-
-    cx.add_basemap(ax, source=cx.providers.OpenStreetMap.CH, zoom=17)
+    cx.add_basemap(ax, source=cx.providers.OpenStreetMap.CH, zoom=17, alpha=0.8)
     # ax.set_axis_off()
     plt.show()
 
@@ -270,7 +265,7 @@ def suitability(shd, bhd):
 
 # Main
 if __name__ == "__main__":
-    # python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 1000 -n 10
+    # python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 250 -n 10
 
     from user_finder import com_num, clusterize
     from economics import economic_calc, parameters_with_calc, lcoh_calculator
@@ -303,6 +298,6 @@ if __name__ == "__main__":
     type_dhn = "HTDHN"  # todo: deve essere un input della simulazione
     folder = "\\output\\results"
     suffix = "-%s-x%s-y%s-r%s-n%s-%s" % (gmd, x_coord, y_coord, int(radius), n_max, type_dhn)
-    c, lhd = network_finder(suffix, address, radius)
+    c = network_finder(suffix, address, radius)
 
     print('\nProgram ended\n')
