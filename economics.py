@@ -286,7 +286,6 @@ def economic_calc(cluster, lhd):
     print("\nLCOH for WSHP")
     lcoh_calc(c_inv_wshp(p_individual) * p_individual, k_OandM_wshp, p_wshp, eta_wshp, q_individual, lt_wshp)
 
-    # todo: calcola un cluster per ltdh e uno per htdh
     i_dis = dis_cost_calc(lhd, q_network)
     i_prod = c_inv_wshp(p_network) * p_network * 2
     i_aux = 0.18*q_network
@@ -330,3 +329,62 @@ def dis_cost_calc(lhd, q):
     d_ave = net_diam(lhd)
 
     return (a*(c1+c2*d_ave)) / lhd * q * (1 + k_loss)
+
+
+# Main
+if __name__ == "__main__":
+    # python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 1000 -n 10
+
+    # from user_finder import com_num, clusterize
+    # from economics import economic_calc, parameters_with_calc, lcoh_calculator
+    #
+    # print('\nProgram started\n')
+    #
+    # # Input args
+    # arg_parser = argparse.ArgumentParser()
+    # arg_parser.add_argument('-addr', help='address of the generation plant')
+    # arg_parser.add_argument('-r', help='radius in meters around the generation plant', type=float)
+    # arg_parser.add_argument('-n', help='maximum number of customers in the network', type=int)
+    #
+    # args = arg_parser.parse_args()
+    # address = args.addr
+    # radius = args.r
+    # n_max = args.n
+    #
+    # gmd, p = com_num(address)
+    # fileDir = os.path.dirname(os.path.abspath(__file__))
+    # fp = fileDir + "\\output\\processed_data\\data-" + str(gmd) + ".csv"
+    #
+    # temp = pd.read_csv(fp, sep=";", index_col='index')
+    # temp['geometry'] = temp['geometry'].apply(wkt.loads)
+    # b = gpd.GeoDataFrame(temp, crs='epsg:21781')
+    # # print(b.head())
+    #
+    # # type = "HTDHN"
+    # # clusterize(b, gmd, radius, p, n_max, type)
+    # #
+    # # fn = "cluster-%s-%s.geojson" % (gmd, type)
+    # # c, lhd = network_finder(fn, address, radius)
+    # # economic_calc(c, lhd)  # todo: to be removed
+    # #
+    # # type = "LTDHN"
+    # # clusterize(b, gmd, radius, p, n_max, type)
+    #
+    # fn = "cluster-%s-%s.geojson" % (gmd, type)
+    # c, lhd = network_finder(fn, address, radius)
+    #
+    # # todo: to be added to the economics main
+    # p_individual = c.loc[0, 'P_tot']
+    # q_individual = c.loc[0, 'fab_tot']
+    # p_network = c['P_tot'].sum()  # todo: add concurrency factor
+    # q_network = c['fab_tot'].sum()
+    #
+    # # economic_calc(c, lhd)
+    #
+    # # par = parameters_with_calc(type, q_network, p_network, lhd)
+    # lcoh, par = lcoh_calculator(type, q_network, p_network, lhd)
+    # print("The LCOH for", type, "is", "{:.3f}".format(lcoh), "CHF/kWh")
+    # df = pd.DataFrame([par])
+    # print(df)
+
+    print('\nProgram ended\n')
