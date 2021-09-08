@@ -250,15 +250,13 @@ def suitability(shd, bhd):
     return out_str
 
 
-
-
-
 # Main
 if __name__ == "__main__":
     # python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 1000 -n 10
 
     from user_finder import com_num, clusterize
-    from economics import economic_calc
+    from economics import economic_calc, parameters_with_calc, lcoh_calculator
+
     print('\nProgram started\n')
 
     # Input args
@@ -286,13 +284,26 @@ if __name__ == "__main__":
 
     fn = "cluster-%s-%s.geojson" % (gmd, type)
     c, lhd = network_finder(fn, address, radius)
-    economic_calc(c, lhd)
+    economic_calc(c, lhd)  # todo: to be removed
 
     type = "LTDHN"
     clusterize(b, gmd, radius, p, n_max, type)
 
     fn = "cluster-%s-%s.geojson" % (gmd, type)
     c, lhd = network_finder(fn, address, radius)
-    economic_calc(c, lhd)
+
+    # todo: to be added to the economics main
+    p_individual = c.loc[0, 'P_tot']
+    q_individual = c.loc[0, 'fab_tot']
+    p_network = c['P_tot'].sum()  # todo: add concurrency factor
+    q_network = c['fab_tot'].sum()
+
+    # economic_calc(c, lhd)
+
+    # par = parameters_with_calc(type, q_network, p_network, lhd)
+    lcoh, par = lcoh_calculator(type, q_network, p_network, lhd)
+    print("The LCOH for", type, "is", "{:.3f}".format(lcoh), "CHF/kWh")
+    df = pd.DataFrame([par])
+    print(df)
 
     print('\nProgram ended\n')
