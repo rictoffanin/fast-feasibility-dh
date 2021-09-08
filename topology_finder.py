@@ -245,10 +245,6 @@ def suitability(shd, bhd):
     return out_str
 
 
-<<<<<<< HEAD
-=======
-
->>>>>>> d62882a7625edd439084599311c2ca04005f4392
 # Main
 if __name__ == "__main__":
     # python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 1000 -n 10
