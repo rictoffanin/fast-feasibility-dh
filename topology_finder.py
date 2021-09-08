@@ -13,7 +13,9 @@ import numpy as np
 import contextily as cx
 
 
-def network_finder(filename, address, distance):
+def network_finder(file_suffix, addr, distance):
+
+    # todo: separate in smaller functions
 
     absFilePath = os.path.abspath(__file__)
     fileDir = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +26,7 @@ def network_finder(filename, address, distance):
     # area.to_crs(CRS.from_epsg(21781), inplace=True)
 
     # Fetch OSM street network from the location
-    graph = ox.graph_from_address(address, simplify=False, retain_all=True, dist=distance+250, network_type="all_private")
+    graph = ox.graph_from_address(addr, simplify=False, retain_all=True, dist=distance + 250, network_type="all_private")
     # Project the data
     graph = ox.project_graph(graph, to_crs=CRS.from_epsg(21781))
 
@@ -38,15 +40,15 @@ def network_finder(filename, address, distance):
     # tags for buildings
     tags = {'building': True}
     # Retrieve buildings with a defined distance in meters from address
-    buildings = ox.geometries_from_address(address, tags, dist=distance+250)
+    buildings = ox.geometries_from_address(addr, tags, dist=distance + 250)
     # Project the buildings
     buildings.to_crs(CRS.from_epsg(21781), inplace=True)
 
     # Read the file containing the info regarding the buildings
-    fn = fileDir + "\\output\\raw_data\\" + filename
+    fn = fileDir + "\\output\\results\\" + "cluster" + file_suffix + ".geojson"
     users = gpd.read_file(fn, driver="GeoJSON")
 
-    orig_coords = ox.geocoder.geocode(address)  # (lat, lng) but gpd accepts (lng, lat)
+    orig_coords = ox.geocoder.geocode(addr)  # (lat, lng) but gpd accepts (lng, lat)
     orig_point = Point([orig_coords[1], orig_coords[0]])
 
     origin_geo = gpd.GeoDataFrame({'geometry': [orig_point]})
@@ -117,7 +119,7 @@ def network_finder(filename, address, distance):
     # creating geodataframe containing the branches of the network
     network = gpd.GeoDataFrame(network, columns=['geometry'], crs=nodes.crs)
 
-    # creating a geodataframe with the linestring of # creating a list containing every paths from origin to destination
+    # creating a geodataframe with the linestring of every paths from origin to destination
     route_geom = gpd.GeoDataFrame(r_od, crs=edges.crs, columns=['geometry'])
 
     # adding origin & destination
@@ -129,40 +131,61 @@ def network_finder(filename, address, distance):
 
     convex_hull = users['geometry'].unary_union.convex_hull
     shd = users['fab_tot'].sum() / convex_hull.area
-    print("The land heat density of the cluster is", "{:.2f}".format(shd), "kWh/m2 =",
-          "{:.2f}".format(shd * 10), "MWh/ha")
+
+    # print("The land heat density of the cluster is", "{:.2f}".format(shd), "kWh/m2 =",
+    #       "{:.2f}".format(shd * 10), "MWh/ha")
     # print("The value should be higher than 350 MWh/ha.")
 
     bhd_max = users['fab_tot'].max() / users.loc[users['fab_tot'].idxmax(), 'SRE']
     bhd_ave = users['fab_tot'].sum() / users['SRE'].sum()
-    print("The maximum specific heat demand of a building is", "{:.2f}".format(bhd_max), "kWh/m2 per year")
+
+    # print("The maximum specific heat demand of a building is", "{:.2f}".format(bhd_max), "kWh/m2 per year")
 
     shd = shd * 10  # conversion to MWh / m2
     # print("The value should be higher than 70 kWh/m2 per year.")
 
-    print("The length of the network is", "{:.2f}".format(network['geometry'].length.sum() / 1000), "km")
-    print("The longest generator-user path is is", "{:.2f}".format(route_geom['length_m'].max()), "m")
+    # print("The length of the network is", "{:.2f}".format(network['geometry'].length.sum() / 1000), "km")
+    # print("The longest generator-user path is is", "{:.2f}".format(route_geom['length_m'].max()), "m")
 
     lhd_energy = users['fab_tot'].sum() / network['geometry'].length.sum()
-    print("The heat density of the network is", "{:.2f}".format(lhd_energy / 1000), "MWh/m")
-    print("This value should be higher than 2.0 MWh/m")
+    # print("The heat density of the network is", "{:.2f}".format(lhd_energy / 1000), "MWh/m")
+    # print("This value should be higher than 2.0 MWh/m")
 
     lhd_power = users['P_tot'].sum() / network['geometry'].length.sum()
-    print("The heat density of the network is",
-          "{:.2f}".format(lhd_power), "kW/m")
-    print("This value should be higher than 1.0 kW/m")
+    # print("The heat density of the network is",
+    #       "{:.2f}".format(lhd_power), "kW/m")
+    # print("This value should be higher than 1.0 kW/m")
 
+    # todo: modify the name to match the cluster filename
     res = suitability(shd, bhd_ave)
-    dict = {'bhd': bhd_ave, 'shd': shd, 'lhd_energy': lhd_energy, 'lhd_power': lhd_power, "suitable-for": res}
+    dict_kpi = {'bhd': bhd_ave, 'shd': shd, 'lhd_energy': lhd_energy, 'lhd_power': lhd_power, "suitable-for": res}
+    # todo: aggiungi altri kpi al dataframe
     # origin point, radius, number of buildings, length of the network, land area, building area, costs
-    kpi = pd.DataFrame([dict], index=['HTDH'])
-    print(kpi)
+
+    kpi = pd.DataFrame([dict_kpi], index=['HTDH'])
+
+    folder_name = "\\output\\topology\\"
+    fn = fileDir + folder_name + "\\network-kpi.csv"
+    kpi.to_csv(fn, sep=";", encoding='utf-8-sig', index_label='index')
 
     network['length'] = network['geometry'].length
 
-    folder = "\\output\\processed_data\\"
-    fn = fileDir + folder + filename
-    users.to_file(fn, driver="GeoJSON", show_bbox=True, indent=4)
+    users["path"] = route_geom["geometry"]
+    users["path_length"] = route_geom["length_m"]
+
+    folder_name = "\\output\\topology\\"
+    fn = fileDir + folder_name + "users" + file_suffix + ".geojson"
+    # users.to_file(fn, driver="GeoJSON", show_bbox=True, indent=4) fixme: errore nella scrittura
+
+    fn = fileDir + folder_name + "users" + file_suffix + ".csv"
+    users.to_csv(fn, sep=";", encoding='utf-8-sig', index_label='index')
+
+    folder_name = "\\output\\topology\\"
+    fn = fileDir + folder_name + "network" + file_suffix + ".geojson"
+    network.to_file(fn, driver="GeoJSON", show_bbox=True, indent=4)
+
+    fn = fileDir + folder_name + "network" + file_suffix + ".csv"
+    network.to_csv(fn, sep=";", encoding='utf-8-sig', index_label='index')
 
     return users, lhd_energy
 
@@ -266,39 +289,20 @@ if __name__ == "__main__":
     n_max = args.n
 
     gmd, p = com_num(address)
+    point = {'geometry': [p]}
+    point = gpd.GeoDataFrame(point, crs='epsg:21781')
+
+    # saving the results in a .csv file
+    absFilePath = os.path.abspath(__file__)
     fileDir = os.path.dirname(os.path.abspath(__file__))
-    fp = fileDir + "\\output\\raw_data\\data-" + str(gmd) + ".csv"
+    parentDir = os.path.dirname(fileDir)
 
-    temp = pd.read_csv(fp, sep=";", index_col='index')
-    temp['geometry'] = temp['geometry'].apply(wkt.loads)
-    b = gpd.GeoDataFrame(temp, crs='epsg:21781')
-    # print(b.head())
+    x_coord = round(point.geometry.x.values[0], 3)
+    y_coord = round(point.geometry.y.values[0], 3)
 
-    type = "HTDHN"
-    clusterize(b, gmd, radius, p, n_max, type)
-
-    fn = "cluster-%s-%s.geojson" % (gmd, type)
-    c, lhd = network_finder(fn, address, radius)
-    economic_calc(c, lhd)  # todo: to be removed
-
-    type = "LTDHN"
-    clusterize(b, gmd, radius, p, n_max, type)
-
-    fn = "cluster-%s-%s.geojson" % (gmd, type)
-    c, lhd = network_finder(fn, address, radius)
-
-    # todo: to be added to the economics main
-    p_individual = c.loc[0, 'P_tot']
-    q_individual = c.loc[0, 'fab_tot']
-    p_network = c['P_tot'].sum()  # todo: add concurrency factor
-    q_network = c['fab_tot'].sum()
-
-    # economic_calc(c, lhd)
-
-    # par = parameters_with_calc(type, q_network, p_network, lhd)
-    lcoh, par = lcoh_calculator(type, q_network, p_network, lhd)
-    print("The LCOH for", type, "is", "{:.3f}".format(lcoh), "CHF/kWh")
-    df = pd.DataFrame([par])
-    print(df)
+    type_dhn = "HTDHN"  # todo: deve essere un input della simulazione
+    folder = "\\output\\results"
+    suffix = "-%s-x%s-y%s-r%s-n%s-%s" % (gmd, x_coord, y_coord, int(radius), n_max, type_dhn)
+    c, lhd = network_finder(suffix, address, radius)
 
     print('\nProgram ended\n')
