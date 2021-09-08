@@ -36,12 +36,14 @@ def read_param(fn):
 
 def clusterize(buildings, commune, radius, point, n, type_dhn):
 
+    assert type_dhn == 'LTDHN' or 'HTDHN', "The network type must be 'LTDHN' or 'HTDHN'"
+
     buildings = buildings.loc[buildings["fab_tot"] > 0].copy()
 
     point = {'geometry': [point]}
     # point = buildings.iloc[0, buildings.columns.get_loc('geometry')]
-    point = gpd.GeoDataFrame(point, crs='epsg:4326')
-    point.to_crs(CRS.from_epsg(21781), inplace=True)
+    point = gpd.GeoDataFrame(point, crs='epsg:21781')
+    # point.to_crs(CRS.from_epsg(21781), inplace=True)
 
     buildings["distance"] = buildings['geometry'].distance(point.loc[0, 'geometry'])
     buildings.sort_values("fab_tot", inplace=True, ascending=False, ignore_index=True)
@@ -69,15 +71,27 @@ def clusterize(buildings, commune, radius, point, n, type_dhn):
     fileDir = os.path.dirname(os.path.abspath(__file__))
     parentDir = os.path.dirname(fileDir)
 
-    folder = "\\output\\raw_data"
-    filename = fileDir + folder + "\\cluster-%s-%s.geojson" % (commune, type_dhn)
+    x_coord = round(point.geometry.x.values[0], 3)
+    y_coord = round(point.geometry.y.values[0], 3)
+
+    folder = "\\output\\results"
+    filename = fileDir + folder + "\\cluster-%s-x%s-y%s-r%s-n%s-%s.geojson" % (commune, x_coord, y_coord, int(radius), n, type_dhn)
     cluster.to_file(filename, driver="GeoJSON", show_bbox=True, indent=4)
+    print("Writing the results file to:", filename)
+
+
+def check_origin_within(pnt, df):
+    convex_hull = df['geometry'].unary_union.convex_hull
+    assert pnt.within(convex_hull), "Address is not within the area (convex hull) of the buildings"
+    print("Address is within the area (convex hull) of the buildings")
 
 
 # Main
 if __name__ == "__main__":
-    # python user_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 100 -n 10
+    # python user_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 250 -n 10 -t LTDHN
 
+    # fixme: given a file with processed data, check if the address is within the area, then find the most suitable
+    #  users for the type of the network within the radius
     print('\nProgram started\n')
 
     # Input args
@@ -85,13 +99,13 @@ if __name__ == "__main__":
     arg_parser.add_argument('-addr', help='address of the generation plant')
     arg_parser.add_argument('-r', help='radius in meters around the generation plant', type=float)
     arg_parser.add_argument('-n', help='maximum number of customers in the network', type=int)
-    # arg_parser.add_argument('-com', help='commune: number of the Swiss official commune register')
+    arg_parser.add_argument('-t', help='type: low-temperature (LTDHN) or high-temperature (HTDHN) district heating')
 
     args = arg_parser.parse_args()
     address = args.addr
     radius = args.r
     n_max = args.n
-    # commune = args.com
+    net_type = args.t
 
     gmd, p = com_num(address)
     fileDir = os.path.dirname(os.path.abspath(__file__))
@@ -100,8 +114,9 @@ if __name__ == "__main__":
     temp = pd.read_csv(fp, sep=";", index_col='index')
     temp['geometry'] = temp['geometry'].apply(wkt.loads)
     b = gpd.GeoDataFrame(temp, crs='epsg:21781')
-    # print(b.head())
 
-    clusterize(b, gmd, radius, p, n_max)
+    check_origin_within(p, b)
+
+    clusterize(b, gmd, radius, p, n_max, net_type)
 
     print('\nProgram ended\n')

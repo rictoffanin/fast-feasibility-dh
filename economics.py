@@ -101,7 +101,7 @@ def parameters_with_calc(hs_type, q, p, lhd):
 
     hs = {}
     if hs_type == 'ashp' or 'ASHP':
-        hs['i_prod'] = lambda x: 14677 * pow(x, -0.683)  # CHF / kW_th
+        hs['i_prod'] = (lambda x: 14677 * pow(x, -0.683))(p) * p  # CHF / kW_th
         hs['i_dis'] = 0.00 * q
         hs['i_aux'] = 0.00 * q
         hs['i_con'] = 0.00 * q
@@ -116,7 +116,7 @@ def parameters_with_calc(hs_type, q, p, lhd):
         hs['price'] = 0.201  # CHF/kWh_th
 
     elif hs_type == 'wshp' or 'WSHP':
-        hs['i_prod'] = lambda x: 16625 * pow(x, -0.321)  # CHF / kW_th
+        hs['i_prod'] = (lambda x: 16625 * pow(x, -0.321))(p) * p  # CHF / kW_th
         hs['i_dis'] = 0.00
         hs['i_aux'] = 0.00
         hs['i_con'] = 0.00
@@ -131,7 +131,7 @@ def parameters_with_calc(hs_type, q, p, lhd):
         hs['price'] = 0.201  # CHF/kWh_th
 
     elif hs_type == 'gshp' or 'GSHP':
-        hs['i_prod'] = lambda x: 15962 * pow(x, -0.259)  # CHF / kW_th
+        hs['i_prod'] = (lambda x: 15962 * pow(x, -0.259))(p) * p  # CHF / kW_th
         hs['i_dis'] = 0.00
         hs['i_aux'] = 0.00
         hs['i_con'] = 0.00
@@ -146,7 +146,7 @@ def parameters_with_calc(hs_type, q, p, lhd):
         hs['price'] = 0.201  # CHF/kWh_th
 
     elif hs_type == 'gas' or 'GAS' or 'gas boiler':
-        hs['i_prod'] = lambda x: 945 * pow(x, 0.000)  # CHF / kW_th
+        hs['i_prod'] = (lambda x: 945 * pow(x, 0.000))(p) * p  # CHF / kW_th
         hs['i_dis'] = 0.00
         hs['i_aux'] = 0.00
         hs['i_con'] = 0.00
@@ -161,7 +161,7 @@ def parameters_with_calc(hs_type, q, p, lhd):
         hs['price'] = 0.093  # CHF/kWh_th
 
     elif hs_type == 'oil' or 'OIL' or 'oil boiler':
-        hs['i_prod'] = lambda x: 880 * pow(x, 0.000)  # CHF / kW_th
+        hs['i_prod'] = (lambda x: 880 * pow(x, 0.000))(p) * p  # CHF / kW_th
         hs['i_dis'] = 0.00
         hs['i_aux'] = 0.00
         hs['i_con'] = 0.00
@@ -176,7 +176,7 @@ def parameters_with_calc(hs_type, q, p, lhd):
         hs['price'] = 0.078  # CHF/kWh_th
 
     elif hs_type == 'high-temperature district heating' or 'low-temperature district heating' or 'htdh' or 'ltdh':
-        hs['i_prod'] = lambda x: 16625 * pow(x, -0.321)  # CHF / kW_th
+        hs['i_prod'] = (lambda x: 16625 * pow(x, -0.321))(p) * p  # CHF / kW_th
         hs['i_dis'] = dis_cost_calc(lhd, q)
         hs['i_aux'] = 0.18  # percent of total heating demand
         hs['i_con'] = 0.03  # percent of total heating demand
@@ -190,7 +190,7 @@ def parameters_with_calc(hs_type, q, p, lhd):
         hs['lifetime'] = 20  # years
         hs['price'] = 0.078  # CHF/kWh_th
 
-    hs['I_inv_tot'] = hs['i_prod'](p) + hs['i_dis'] + hs['i_aux'] + hs['i_con']
+    hs['I_inv_tot'] = hs['i_prod'] + hs['i_dis'] + hs['i_aux'] + hs['i_con']
 
     hs['I_inv_yearly'] = hs['I_inv_tot'] * annuity(hs['lifetime'])
     hs['I_O&M_yearly'] = hs['k_O&M'] * hs['I_inv_tot']
@@ -204,10 +204,10 @@ def lcoh_calculator(hs_type, q, p, lhd, lt_project=40, r=0.03):
 
     hs = parameters_with_calc(hs_type, q, p, lhd)
     a = annuity(lt_project, r)
-    hs['I_inv_yearly'] = hs['I_inv_tot']*lt_project/hs['lifetime'] * a
-    num = hs['I_inv_yearly'] + hs['I_O&M_yearly'] + hs['I_energy_yearly']
+    hs['I_inv_yearly_lt_corrected'] = hs['I_inv_tot']*lt_project/hs['lifetime'] * a
+    num = hs['I_inv_yearly_lt_corrected'] + hs['I_O&M_yearly'] + hs['I_energy_yearly']
 
-    return num / q
+    return num / q, hs
 
 
 def economic_calc(cluster, lhd):
