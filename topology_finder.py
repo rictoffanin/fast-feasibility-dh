@@ -84,15 +84,19 @@ def network_finder(file_suffix, addr, distance):
     # Find the node in the graph that is closest to the origin point (node id)
     orig_node_id = get_nearest_nodes(graph, origin.x, origin.y)
 
-    # orig_node_id = ox.distance.nearest_nodes(graph, origin.x, origin.y)
-    orig_node_id_single = orig_node_id
-
     # Find the node in the graph that is closest to the target points (node id)
-    target_node_id = ox.distance.nearest_nodes(graph, destination.x, destination.y)
+    target_node_id = get_nearest_nodes(graph, destination.x, destination.y)
 
+    def compare_length_origin_destination(org_node_ids, trg_node_ids):
+        assert type(org_node_ids) is int, "The length of the origin node IDs is %s" % len(org_node_ids)
+        assert len(trg_node_ids) >= 1, "The length of the destination node IDs is %s" % len(trg_node_ids)
+        # duplicated the orig_node_id so that it has the same lengths of target_node_id
+        orig_node_id_single = org_node_ids
+        org_node_ids = [orig_node_id_single for x in range(len(target_node_id))]
 
-    # duplicated the orig_node_id so that it has the same lengths of target_node_id
-    orig_node_id = [orig_node_id_single for x in range(len(target_node_id))]
+        return org_node_ids
+
+    orig_node_id = compare_length_origin_destination(orig_node_id, target_node_id)
 
     # Calculate the shortest paths (route contains the node IDs of the graph)
     route = ox.shortest_path(G=graph, orig=orig_node_id, dest=target_node_id, weight='length')
@@ -183,8 +187,6 @@ def kpi_calc(file_suffix, addr, r, users, network, type_dhn):
         'land_area': land_area, 'building_area': users['SRE'].sum(),
         'bhd': bhd_ave, 'shd': shd, 'lhd_energy': lhd_energy, 'lhd_power': lhd_power, "suitable-for": res,
     }
-    # todo: aggiungi altri kpi al dataframe
-    # costs
 
     kpi = pd.DataFrame([dict_kpi], index=[type_dhn])
 
@@ -315,7 +317,7 @@ if __name__ == "__main__":
     c, net = network_finder(suffix, address, radius)
 
     res_kpi = kpi_calc(suffix, address, radius, c, net, net_type)
-    write_data_to_file(res_kpi, "\\output\\results", "network-kpi", suffix)
+    write_data_to_file(res_kpi, "\\output\\results", "network-energy-kpi", suffix)
     write_data_to_file(c, "\\output\\results", "users", suffix)
     write_data_to_file(net, "\\output\\results", "network", suffix)
 
