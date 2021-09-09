@@ -17,14 +17,14 @@ from pathlib import Path
 def network_finder(file_suffix, addr, distance):
     # todo: separate in smaller functions
 
-    absFilePath = os.path.abspath(__file__)
-    fileDir = os.path.dirname(os.path.abspath(__file__))
-    parentDir = os.path.dirname(fileDir)
+    def get_graph_from_address(addr_arg, osm_net_type="all_private"):
+        # Fetch OSM street network from the location
+        g = ox.graph_from_address(addr_arg, simplify=False, dist=distance + 50, network_type=osm_net_type)
+        # Project the data
+        g = ox.project_graph(g, to_crs=CRS.from_epsg(21781))
+        return g
 
-    # Fetch OSM street network from the location
-    graph = ox.graph_from_address(addr, simplify=False, retain_all=True, dist=distance + 50, network_type="all_private")
-    # Project the data
-    graph = ox.project_graph(graph, to_crs=CRS.from_epsg(21781))
+    graph = get_graph_from_address(addr)
 
     # Retrieve nodes and edges
     nodes, edges = ox.graph_to_gdfs(graph)
@@ -126,20 +126,6 @@ def network_finder(file_suffix, addr, distance):
     users["path"] = paths["geometry"]
     users["path_length"] = paths["length_m"]
 
-    folder_name = "\\output\\topology\\"
-    fn = fileDir + folder_name + "users" + file_suffix + ".geojson"
-    # users.to_file(fn, driver="GeoJSON", show_bbox=True, indent=4) fixme: errore nella scrittura
-
-    # fn = fileDir + folder_name + "users" + file_suffix + ".csv"
-    # users.to_csv(fn, sep=";", encoding='utf-8-sig', index_label='index')
-    #
-    # folder_name = "\\output\\topology\\"
-    # fn = fileDir + folder_name + "network" + file_suffix + ".geojson"
-    # network.to_file(fn, driver="GeoJSON", show_bbox=True, indent=4)
-
-    # fn = fileDir + folder_name + "network" + file_suffix + ".csv"
-    # network.to_csv(fn, sep=";", encoding='utf-8-sig', index_label='index')
-
     plot(edges, nodes, buildings, users, network, paths, dest_nodes, orig_nodes, origin_geo, destination)
 
     return users, network
@@ -177,9 +163,6 @@ def kpi_calc(file_suffix, addr, r, users, network, type_dhn):
 
     kpi = pd.DataFrame([dict_kpi], index=[type_dhn])
 
-    # folder_name = "\\output\\topology\\"
-    # fn = fileDir + folder_name + "network-kpi" + file_suffix + ".csv"
-    # kpi.to_csv(fn, sep=";", encoding='utf-8-sig', index_label='index')
     return kpi
 
 
