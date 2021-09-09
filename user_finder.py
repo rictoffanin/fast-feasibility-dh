@@ -90,8 +90,6 @@ def check_origin_within(pnt, df):
 if __name__ == "__main__":
     # python user_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 250 -n 10 -t LTDHN
 
-    # fixme: given a file with processed data, check if the address is within the area, then find the most suitable
-    #  users for the type of the network within the radius
     print('\nProgram started\n')
 
     # Input args
@@ -107,6 +105,7 @@ if __name__ == "__main__":
     n_max = args.n
     net_type = args.t
 
+    # todo: the filename must be universal
     gmd, p = com_num(address)
     fileDir = os.path.dirname(os.path.abspath(__file__))
     fp = fileDir + "\\output\\processed_data\\data-" + str(gmd) + ".csv"
