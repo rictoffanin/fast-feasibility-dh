@@ -17,28 +17,38 @@ from pathlib import Path
 def network_finder(file_suffix, addr, distance):
     # todo: separate in smaller functions
 
-    def get_graph_from_address(addr_arg, osm_net_type="all_private"):
-        # Fetch OSM street network from the location
-        g = ox.graph_from_address(addr_arg, simplify=False, dist=distance + 50, network_type=osm_net_type)
-        # Project the data
-        g = ox.project_graph(g, to_crs=CRS.from_epsg(21781))
+    def get_graph_from_address(addr_arg, osm_net_type="all_private", epsg_num=21781):
+        # fetch OSM street network from the location
+        g = ox.graph_from_address(addr_arg, simplify=False, dist=distance+50, network_type=osm_net_type)
+        # project the graph
+        g = ox.project_graph(g, to_crs=CRS.from_epsg(epsg_num))
+
         return g
 
     graph = get_graph_from_address(addr)
 
-    # Retrieve nodes and edges
-    nodes, edges = ox.graph_to_gdfs(graph)
+    def get_nodes_edges_from_graph(g, epsg_num=21781):
+        # retrieve nodes and edges
+        nodes_gdf, edges_gdf = ox.graph_to_gdfs(g)
+        # Project nodes and edges
+        nodes_gdf.to_crs(CRS.from_epsg(epsg_num), inplace=True)
+        edges_gdf.to_crs(CRS.from_epsg(epsg_num), inplace=True)
 
-    # Project nodes and edges
-    nodes.to_crs(CRS.from_epsg(21781), inplace=True)
-    edges.to_crs(CRS.from_epsg(21781), inplace=True)
+        return nodes_gdf, edges_gdf
 
-    # tags for buildings
-    tags = {'building': True}
-    # Retrieve buildings with a defined distance in meters from address
-    buildings = ox.geometries_from_address(addr, tags, dist=distance + 250)
-    # Project the buildings
-    buildings.to_crs(CRS.from_epsg(21781), inplace=True)
+    nodes, edges = get_nodes_edges_from_graph(graph)
+
+    def get_buildings_from_address(addr_arg):
+        # tags for buildings
+        tags = {'building': True}
+        # Retrieve buildings with a defined distance in meters from address
+        b = ox.geometries_from_address(addr_arg, tags, dist=distance+50)
+        # Project the buildings
+        b.to_crs(CRS.from_epsg(21781), inplace=True)
+
+        return b
+
+    buildings = get_buildings_from_address(addr)
 
     # Read the file containing the info regarding the buildings
     fn = fileDir + "\\output\\results\\" + "cluster" + file_suffix + ".geojson"
@@ -47,9 +57,6 @@ def network_finder(file_suffix, addr, distance):
     # geocoding the address
     orig_coords = ox.geocoder.geocode(addr)  # (lat, lng) but gpd accepts (lng, lat)
 
-    # creating a shapely Point object from the coordinates
-    orig_point = Point([orig_coords[1], orig_coords[0]])
-
     # the origin is the building closest to the geocoded address
     origin = users["geometry"].values[users['distance'].idxmin()]
     # creating a GDF from the origin for easier plotting
@@ -57,7 +64,8 @@ def network_finder(file_suffix, addr, distance):
 
     # defining the location of the users as the destinations
     destination = users["geometry"].values[:]
-    destination = gpd.GeoSeries(destination)
+    # creating a GDF from the destinations for easier plotting
+    destination_geo = gpd.GeoDataFrame({'geometry': destination}, crs=21781)
 
     # Find the node in the graph that is closest to the origin point (node id)
     orig_node_id = ox.distance.nearest_nodes(graph, origin.x, origin.y)
