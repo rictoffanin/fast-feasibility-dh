@@ -57,22 +57,39 @@ def network_finder(file_suffix, addr, distance):
     # geocoding the address
     orig_coords = ox.geocoder.geocode(addr)  # (lat, lng) but gpd accepts (lng, lat)
 
-    # the origin is the building closest to the geocoded address
-    origin = users["geometry"].values[users['distance'].idxmin()]
-    # creating a GDF from the origin for easier plotting
-    origin_geo = gpd.GeoDataFrame({'geometry': [origin]}, crs=21781)
+    def define_origin(users_gdf, epsg_num=21781):
+        # the origin is the building closest to the geocoded address
+        org = users_gdf["geometry"].values[users_gdf['distance'].idxmin()]
+        # creating a GDF from the origin for easier plotting
+        org_geo = gpd.GeoDataFrame({'geometry': [org]}, crs=epsg_num)
 
-    # defining the location of the users as the destinations
-    destination = users["geometry"].values[:]
-    # creating a GDF from the destinations for easier plotting
-    destination_geo = gpd.GeoDataFrame({'geometry': destination}, crs=21781)
+        return org, org_geo
+
+    origin, origin_geo = define_origin(users, epsg_num=21781)
+
+    def define_destination(users_gdf, epsg_num=21781):
+        # defining the location of the users as the destinations
+        dest = users["geometry"].values[:]
+        # creating a GDF from the destinations for easier plotting
+        dest_geo = gpd.GeoDataFrame({'geometry': dest}, crs=epsg_num)
+
+        return dest, dest_geo
+
+    destination, destination_geo = define_destination(users)
+
+    def get_nearest_nodes(g, x, y):
+        node_ids = ox.distance.nearest_nodes(g, x, y)
+        return node_ids
 
     # Find the node in the graph that is closest to the origin point (node id)
-    orig_node_id = ox.distance.nearest_nodes(graph, origin.x, origin.y)
+    orig_node_id = get_nearest_nodes(graph, origin.x, origin.y)
+
+    # orig_node_id = ox.distance.nearest_nodes(graph, origin.x, origin.y)
     orig_node_id_single = orig_node_id
 
     # Find the node in the graph that is closest to the target points (node id)
     target_node_id = ox.distance.nearest_nodes(graph, destination.x, destination.y)
+
 
     # duplicated the orig_node_id so that it has the same lengths of target_node_id
     orig_node_id = [orig_node_id_single for x in range(len(target_node_id))]
