@@ -130,22 +130,39 @@ def network_finder(file_suffix, addr, distance):
 
     route_lines = create_route_paths(route, nodes)
 
-    # work-around to append each origin and destination to every path
-    r_od = []
-    for idx in range(len(route_lines)):
-        temp = []
-        temp.append(origin)
-        for coord in route_lines[idx].coords:
-            temp.append(coord)
-        temp.append(destination[idx])
+    # # work-around to append each origin and destination to every path
+    # route_od = []
+    # for idx in range(len(route_lines)):
+    #     temp = []
+    #     temp.append(origin)
+    #     for coord in route_lines[idx].coords:
+    #         temp.append(coord)
+    #     temp.append(destination[idx])
+    #
+    #     line = LineString(temp)
+    #     route_od.append(line)
+    #
+    #     del temp
 
-        line = LineString(temp)
-        r_od.append(line)
+    def append_orig_and_dest_to_paths(r_lines, orig, dest):
+        # work-around to append each origin and destination to every path
+        r_od = []
+        for idx in range(len(r_lines)):
+            temp = []
+            temp.append(orig)
+            for coord in r_lines[idx].coords:
+                temp.append(coord)
+            temp.append(dest[idx])
 
-        del temp
+            line = LineString(temp)
+            r_od.append(line)
 
+            del temp
+        return r_od
+
+    route_od = append_orig_and_dest_to_paths(route_lines, origin, destination)
     # unary_union allows to separate the line into segments and remove duplicates
-    network = unary_union(r_od)
+    network = unary_union(route_od)
 
     # creating geodataframe containing the branches of the network
     network = gpd.GeoDataFrame(network, columns=['geometry'], crs=nodes.crs)
@@ -153,7 +170,7 @@ def network_finder(file_suffix, addr, distance):
     network['length'] = network['geometry'].length
 
     # creating a geodataframe with the linestring of every paths from origin to destination
-    paths = gpd.GeoDataFrame(r_od, crs=edges.crs, columns=['geometry'])
+    paths = gpd.GeoDataFrame(route_od, crs=edges.crs, columns=['geometry'])
     # calculate the route length
     paths['length_m'] = paths.length
 
