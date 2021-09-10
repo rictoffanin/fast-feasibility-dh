@@ -103,11 +103,10 @@ def network_finder(file_suffix, addr, distance):
 
     def remove_path_not_found(r, node_id, orig, dest, u):
         # finding the index of None from list (None = no path found)
-        idx = [i for i, e in enumerate(route) if e is None]
-
+        idx = [i for i, e in enumerate(r) if e is None]
         # workaround for creating fake paths for user with no path found
         for i in idx:
-            r[i] = [orig_node_id[i], orig_node_id[i]]
+            r[i] = [node_id[i], node_id[i]]
             dest.loc[i] = orig.loc[0]
             dest.loc[i] = orig
             u.drop(i, inplace=True)
@@ -182,11 +181,20 @@ def kpi_calc(file_suffix, addr, r, users, network, type_dhn):
     # calculating the LINEAR HEAT DENSITY in kW/m
     lhd_power = users['P_tot'].sum() / network['length'].sum()
 
+    # find for which heating system the network is suitable
     res = suitability(shd, bhd_ave)
+
+    p_individual = users.loc[users['distance'].idxmin(), 'P_tot']
+    q_individual = users.loc[users['distance'].idxmin(), 'fab_tot']
+    p_network = users['P_tot'].sum()  # todo: add concurrency factor
+    q_network = users['fab_tot'].sum()
+
     dict_kpi = {
         'origin': addr, 'radius': r, 'n_buildings': len(users), 'length': network['length'].sum(),
         'land_area': land_area, 'building_area': users['SRE'].sum(),
         'bhd': bhd_ave, 'shd': shd, 'lhd_energy': lhd_energy, 'lhd_power': lhd_power, "suitable-for": res,
+        'p_individual': p_individual, 'q_individual': q_individual,
+        'p_network': p_network, 'q_network': q_network
     }
 
     kpi = pd.DataFrame([dict_kpi], index=[type_dhn])
@@ -270,7 +278,6 @@ if __name__ == "__main__":
     # python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 250 -n 10 -t LTDHN
 
     from user_finder import com_num, clusterize
-    from economics import economic_calc, parameters_with_calc, lcoh_calculator
 
     print('\nProgram started\n')
 
