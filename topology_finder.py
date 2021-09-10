@@ -17,7 +17,7 @@ from pathlib import Path
 def network_finder(file_suffix, addr, distance):
     # todo: separate in smaller functions
 
-    def get_graph_from_address(addr_arg, osm_net_type="all_private", epsg_num=21781):
+    def get_graph_from_address(addr_arg, osm_net_type="walk", epsg_num=21781):
         # fetch OSM street network from the location
         g = ox.graph_from_address(addr_arg, simplify=False, dist=distance+50, network_type=osm_net_type)
         # project the graph
@@ -92,38 +92,43 @@ def network_finder(file_suffix, addr, distance):
         assert len(trg_node_ids) >= 1, "The length of the destination node IDs is %s" % len(trg_node_ids)
         # duplicated the orig_node_id so that it has the same lengths of target_node_id
         orig_node_id_single = org_node_ids
-        org_node_ids = [orig_node_id_single for x in range(len(target_node_id))]
+        org_node_ids = [orig_node_id_single for x in range(len(trg_node_ids))]
 
-        return org_node_ids
+        return org_node_ids, trg_node_ids
 
-    orig_node_id = compare_length_origin_destination(orig_node_id, target_node_id)
+    orig_node_id, target_node_id = compare_length_origin_destination(orig_node_id, target_node_id)
 
     # Calculate the shortest paths (route contains the node IDs of the graph)
     route = ox.shortest_path(G=graph, orig=orig_node_id, dest=target_node_id, weight='length')
+
+    # todo: check if it is necessary
     # finding the index of None from list (None = no path found)
-    index = [i for i, e in enumerate(route) if e is None]
-
-    # workaround for creating fake paths for user with no path found
-    for idx in index:
-        # route[idx] = [orig_node_id[idx], orig_node_id[idx]]
-        # destination.loc[idx] = origin.loc[0]
-        # destination.loc[idx] = origin
-        users.drop(idx, inplace=True)
-
-    # Retrieve the rows from the nodes GeoDataFrame based on the node id (node id is the index label)
-    orig_node = nodes.loc[orig_node_id]
-    target_node = nodes.loc[target_node_id]
-
-    # Create a GeoDataFrame from the origin and target points
-    orig_nodes = gpd.GeoDataFrame(orig_node, geometry='geometry', crs=nodes.crs)
-    dest_nodes = gpd.GeoDataFrame(target_node, geometry='geometry', crs=nodes.crs)
+    # index = [i for i, e in enumerate(route) if e is None]
+    #
+    # # workaround for creating fake paths for user with no path found
+    # for idx in index:
+    #     route[idx] = [orig_node_id[idx], orig_node_id[idx]]
+    #     # destination.loc[idx] = origin.loc[0]
+    #     # destination.loc[idx] = origin
+    #     # users.drop(idx, inplace=True)
 
     # creating a list containing every paths from origin to destination
-    route_lines = []
-    for i in route:
-        if len(list(nodes.loc[i].geometry.values)) < 2:
-            i = [i[0], i[0]]
-        route_lines.append(LineString(list(nodes.loc[i].geometry.values)))
+    # route_lines = []
+    # for i in route:
+    #     if len(list(nodes.loc[i].geometry.values)) < 2:
+    #         i = [i[0], i[0]]
+    #     route_lines.append(LineString(list(nodes.loc[i].geometry.values)))
+
+    def create_route_paths(r, n):
+        # creating a list containing every paths from origin to destination
+        r_lines = []
+        for i in r:
+            if len(list(n.loc[i].geometry.values)) < 2:
+                i = [i[0], i[0]]
+            r_lines.append(LineString(list(n.loc[i].geometry.values)))
+        return r_lines
+
+    route_lines = create_route_paths(route, nodes)
 
     # work-around to append each origin and destination to every path
     r_od = []
@@ -155,7 +160,7 @@ def network_finder(file_suffix, addr, distance):
     users["path"] = paths["geometry"]
     users["path_length"] = paths["length_m"]
 
-    plot(edges, nodes, buildings, users, network, paths, dest_nodes, orig_nodes, origin_geo, destination)
+    plot(edges, nodes, buildings, users, network, paths, origin_geo, destination)
 
     return users, network
 
@@ -202,15 +207,15 @@ def write_data_to_file(data, folder, name, suffix):
     data.to_csv(fn, sep=";", encoding='utf-8-sig', index_label='index')
 
 
-def plot(edges, nodes, buildings, users, network, route_geom, dest_nodes, orig_nodes, origin_geo, destination):
+def plot(edges, nodes, buildings, users, network, route_geom, origin_geo, destination):
     edges_wm = edges.to_crs(epsg=3857)
     nodes_wm = nodes.to_crs(epsg=3857)
     buildings_wm = buildings.to_crs(epsg=3857)
     cluster_wm = users.to_crs(epsg=3857)
     network_wm = network.to_crs(epsg=3857)
     route_geom_wm = route_geom.to_crs(epsg=3857)
-    dest_nodes_wm = dest_nodes.to_crs(epsg=3857)
-    orig_nodes_wm = orig_nodes.to_crs(epsg=3857)
+    # dest_nodes_wm = dest_nodes.to_crs(epsg=3857)
+    # orig_nodes_wm = orig_nodes.to_crs(epsg=3857)
     origin_geo_wm = origin_geo.to_crs(epsg=3857)
     destination_wm = destination.to_crs(epsg=3857)
 
@@ -254,7 +259,7 @@ def suitability(shd, bhd):
         elif bhd > 60:
             # print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS")
             out_str = "IHS"
-    elif 100 <= shd >= 200:
+    elif 100 <= shd <= 200:
         if bhd < 40:
             # print("The network might be suitable for INDIVIDUAL HEATING SYSTEMS/LTDH")
             out_str = "IHS/LDTH"
