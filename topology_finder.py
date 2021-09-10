@@ -101,23 +101,16 @@ def network_finder(file_suffix, addr, distance):
     # Calculate the shortest paths (route contains the node IDs of the graph)
     route = ox.shortest_path(G=graph, orig=orig_node_id, dest=target_node_id, weight='length')
 
-    # todo: check if it is necessary
-    # finding the index of None from list (None = no path found)
-    # index = [i for i, e in enumerate(route) if e is None]
-    #
-    # # workaround for creating fake paths for user with no path found
-    # for idx in index:
-    #     route[idx] = [orig_node_id[idx], orig_node_id[idx]]
-    #     # destination.loc[idx] = origin.loc[0]
-    #     # destination.loc[idx] = origin
-    #     # users.drop(idx, inplace=True)
+    def remove_path_not_found(r, node_id, orig, dest, u):
+        # finding the index of None from list (None = no path found)
+        idx = [i for i, e in enumerate(route) if e is None]
 
-    # creating a list containing every paths from origin to destination
-    # route_lines = []
-    # for i in route:
-    #     if len(list(nodes.loc[i].geometry.values)) < 2:
-    #         i = [i[0], i[0]]
-    #     route_lines.append(LineString(list(nodes.loc[i].geometry.values)))
+        # workaround for creating fake paths for user with no path found
+        for i in idx:
+            r[i] = [orig_node_id[i], orig_node_id[i]]
+            dest.loc[i] = orig.loc[0]
+            dest.loc[i] = orig
+            u.drop(i, inplace=True)
 
     def create_route_paths(r, n):
         # creating a list containing every paths from origin to destination
@@ -129,20 +122,6 @@ def network_finder(file_suffix, addr, distance):
         return r_lines
 
     route_lines = create_route_paths(route, nodes)
-
-    # # work-around to append each origin and destination to every path
-    # route_od = []
-    # for idx in range(len(route_lines)):
-    #     temp = []
-    #     temp.append(origin)
-    #     for coord in route_lines[idx].coords:
-    #         temp.append(coord)
-    #     temp.append(destination[idx])
-    #
-    #     line = LineString(temp)
-    #     route_od.append(line)
-    #
-    #     del temp
 
     def append_orig_and_dest_to_paths(r_lines, orig, dest):
         # work-around to append each origin and destination to every path
@@ -177,7 +156,7 @@ def network_finder(file_suffix, addr, distance):
     users["path"] = paths["geometry"]
     users["path_length"] = paths["length_m"]
 
-    plot(edges, nodes, buildings, users, network, paths, origin_geo, destination)
+    plot(buildings, users, network, origin_geo)
 
     return users, network
 
@@ -224,41 +203,27 @@ def write_data_to_file(data, folder, name, suffix):
     data.to_csv(fn, sep=";", encoding='utf-8-sig', index_label='index')
 
 
-def plot(edges, nodes, buildings, users, network, route_geom, origin_geo, destination):
-    edges_wm = edges.to_crs(epsg=3857)
-    nodes_wm = nodes.to_crs(epsg=3857)
+def plot(buildings, users, network, origin_geo):
+
     buildings_wm = buildings.to_crs(epsg=3857)
     cluster_wm = users.to_crs(epsg=3857)
     network_wm = network.to_crs(epsg=3857)
-    route_geom_wm = route_geom.to_crs(epsg=3857)
-    # dest_nodes_wm = dest_nodes.to_crs(epsg=3857)
-    # orig_nodes_wm = orig_nodes.to_crs(epsg=3857)
     origin_geo_wm = origin_geo.to_crs(epsg=3857)
-    destination_wm = destination.to_crs(epsg=3857)
 
     # define figure and subplots
     fig, ax = plt.subplots()
-
-    # plot edges and nodes
-    # ax = edges_wm.plot(linewidth=0.75, color='gray')
-    # ax = nodes_wm.plot(ax=ax, markersize=2, color='gray')
 
     # add buildings from OpenStreetMap
     ax = buildings_wm.plot(ax=ax, facecolor='khaki', alpha=0.00)
 
     # add cluster of users
-
     ax = cluster_wm.plot(ax=ax, markersize=32, color='forestgreen')
 
     # add the route
-    # ax = route_geom_wm.plot(ax=ax, linewidth=4, linestyle='--', color='red')
     ax = network_wm.plot(ax=ax, linewidth=2, linestyle='solid', color='darkred')
 
     # add the origin and destination nodes of the route
-    # ax = dest_nodes_wm.plot(ax=ax, markersize=12, color='green')
-    # ax = orig_nodes_wm.plot(ax=ax, markersize=48, color='black')
     ax = origin_geo_wm.plot(ax=ax, markersize=64, color='black')
-    # ax = destination_wm.plot(ax=ax, markersize=1, color='green')
 
     cx.add_basemap(ax, source=cx.providers.OpenStreetMap.CH, zoom=17, alpha=0.8)
     # ax.set_axis_off()
