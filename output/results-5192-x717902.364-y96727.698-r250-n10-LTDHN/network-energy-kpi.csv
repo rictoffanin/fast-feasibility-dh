@@ -1,2 +1,2 @@
-﻿index;origin;radius;n_buildings;length;land_area;building_area;bhd;shd;lhd_energy;lhd_power;suitable-for
-LTDHN;Via La Santa 1, Lugano, Svizzera;250.0;10;1792.2386374677694;92464.3999999884;75137.0;48.24194471432184;392.01627869758033;2022.4734163310802;1.0897069450158272;LTDH/HTDH
+﻿index;origin;radius;n_buildings;length;land_area;building_area;bhd;shd;lhd_energy;lhd_power;suitable-for;p_individual;q_individual;p_network;q_network
+LTDHN;Via La Santa 1, Lugano, Svizzera;250.0;10;1295.142404108329;92464.3999999884;75137.0;48.24194471432184;392.01627869758033;2798.7308488254985;1.5079537849885551;LTDH/HTDH;1175.2941176470588;1998000.0;1953.0148903743316;3624755.0

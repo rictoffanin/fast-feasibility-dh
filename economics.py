@@ -2,16 +2,19 @@ import numpy as np
 import argparse
 import geopandas as gpd
 import pandas as pd
+from pathlib import Path
 
 
-def parameters_with_calc(hs_type, q, p, lhd):
+def parameters_with_calc(hs_type, q_annual, p_max, lhd):
 
     hs = {}
-    if hs_type == 'ashp' or 'ASHP':
-        hs['i_prod'] = (lambda x: 14677 * pow(x, -0.683))(p) * p  # CHF / kW_th
-        hs['i_dis'] = 0.00 * q
-        hs['i_aux'] = 0.00 * q
-        hs['i_con'] = 0.00 * q
+    if hs_type == 'ashp' or hs_type == 'ASHP':
+
+        hs['k_prod'] = (lambda x: 14677 * pow(x, -0.683))(min(p_max,50))
+        hs['i_prod'] = hs['k_prod'] * p_max  # CHF / kW_th
+        hs['i_dis'] = 0.00 * q_annual
+        hs['i_aux'] = 0.00 * q_annual
+        hs['i_con'] = 0.00 * q_annual
 
         hs['share_equip'] = 0.27
         hs['share_inst'] = 1.00 - hs['share_equip']
@@ -22,8 +25,10 @@ def parameters_with_calc(hs_type, q, p, lhd):
         hs['lifetime'] = 25  # years
         hs['price'] = 0.201  # CHF/kWh_th
 
-    elif hs_type == 'wshp' or 'WSHP':
-        hs['i_prod'] = (lambda x: 16625 * pow(x, -0.321))(p) * p  # CHF / kW_th
+    elif hs_type == 'wshp' or hs_type == 'WSHP':
+
+        hs['k_prod'] = (lambda x: 16625 * pow(x, -0.321))(min(p_max,500))
+        hs['i_prod'] = hs['k_prod'] * p_max  # CHF / kW_th
         hs['i_dis'] = 0.00
         hs['i_aux'] = 0.00
         hs['i_con'] = 0.00
@@ -37,8 +42,10 @@ def parameters_with_calc(hs_type, q, p, lhd):
         hs['lifetime'] = 25  # years
         hs['price'] = 0.201  # CHF/kWh_th
 
-    elif hs_type == 'gshp' or 'GSHP':
-        hs['i_prod'] = (lambda x: 15962 * pow(x, -0.259))(p) * p  # CHF / kW_th
+    elif hs_type == 'gshp' or hs_type == 'GSHP':
+
+        hs['k_prod'] = (lambda x: 15962 * pow(x, -0.259))(min(p_max,500))
+        hs['i_prod'] = hs['k_prod'] * p_max  # CHF / kW_th
         hs['i_dis'] = 0.00
         hs['i_aux'] = 0.00
         hs['i_con'] = 0.00
@@ -52,8 +59,10 @@ def parameters_with_calc(hs_type, q, p, lhd):
         hs['lifetime'] = 25  # years
         hs['price'] = 0.201  # CHF/kWh_th
 
-    elif hs_type == 'gas' or 'GAS' or 'gas boiler':
-        hs['i_prod'] = (lambda x: 945 * pow(x, 0.000))(p) * p  # CHF / kW_th
+    elif hs_type == 'gas' or hs_type == 'GAS':
+
+        hs['k_prod'] = (lambda x: 945 * pow(x, 0.000))(p_max)
+        hs['i_prod'] = (lambda x: 945 * pow(x, 0.000))(p_max) * p_max  # CHF / kW_th
         hs['i_dis'] = 0.00
         hs['i_aux'] = 0.00
         hs['i_con'] = 0.00
@@ -67,8 +76,10 @@ def parameters_with_calc(hs_type, q, p, lhd):
         hs['lifetime'] = 20  # years
         hs['price'] = 0.093  # CHF/kWh_th
 
-    elif hs_type == 'oil' or 'OIL' or 'oil boiler':
-        hs['i_prod'] = (lambda x: 880 * pow(x, 0.000))(p) * p  # CHF / kW_th
+    elif hs_type == 'oil' or hs_type == 'OIL':
+
+        hs['k_prod'] = (lambda x: 880 * pow(x, 0.000))(p_max)
+        hs['i_prod'] = (lambda x: 880 * pow(x, 0.000))(p_max) * p_max  # CHF / kW_th
         hs['i_dis'] = 0.00
         hs['i_aux'] = 0.00
         hs['i_con'] = 0.00
@@ -82,11 +93,13 @@ def parameters_with_calc(hs_type, q, p, lhd):
         hs['lifetime'] = 20  # years
         hs['price'] = 0.078  # CHF/kWh_th
 
-    elif hs_type == 'htdhn' or 'ltdhn' or 'HTDHN' or 'LTDHN':
-        hs['i_prod'] = (lambda x: 16625 * pow(x, -0.321))(p) * p  # CHF / kW_th
-        hs['i_dis'] = dis_cost_calc(lhd, q)
-        hs['i_aux'] = 0.18  # percent of total heating demand
-        hs['i_con'] = 0.03  # percent of total heating demand
+    elif hs_type == 'htdhn' or hs_type == 'ltdhn' or hs_type == 'HTDHN' or hs_type == 'LTDHN':
+
+        hs['k_prod'] = (lambda x: 16625 * pow(x, -0.321))(min(p_max,500))
+        hs['i_prod'] = hs['k_prod'] * p_max  # CHF / kW_th
+        hs['i_dis'] = dis_cost_calc(lhd, q_annual)
+        hs['i_aux'] = 0.18 * q_annual  # percent of total heating demand
+        hs['i_con'] = 0.03 * q_annual  # percent of total heating demand
 
         hs['share_equip'] = 0.37
         hs['share_inst'] = 1.00 - hs['share_equip']
@@ -101,20 +114,21 @@ def parameters_with_calc(hs_type, q, p, lhd):
 
     hs['I_inv_yearly'] = hs['I_inv_tot'] * annuity(hs['lifetime'])
     hs['I_O&M_yearly'] = hs['k_O&M'] * hs['I_inv_tot']
-    hs['I_energy_yearly'] = hs['price'] * (q / hs['eta'])
+    hs['I_energy_yearly'] = hs['price'] * (q_annual / hs['eta'])
     hs['I_yearly'] = hs['I_inv_yearly'] + hs['I_O&M_yearly'] + hs['I_energy_yearly']
 
     return hs
 
 
-def lcoh_calculator(hs_type, q, p, lhd, lt_project=40, r=0.03):
+def lcoh_calculator(hs_type, q_annual, p_max, lhd, lt_project=40, r=0.03):
 
-    hs = parameters_with_calc(hs_type, q, p, lhd)
-    a = annuity(lt_project, r)
-    hs['I_inv_yearly_lt_corrected'] = hs['I_inv_tot']*lt_project/hs['lifetime'] * a
+    hs = parameters_with_calc(hs_type, q_annual, p_max, lhd)
+    k_a = annuity(lt_project, r)
+    hs['I_inv_yearly_lt_corrected'] = hs['I_inv_tot'] * lt_project / hs['lifetime'] * k_a
     num = hs['I_inv_yearly_lt_corrected'] + hs['I_O&M_yearly'] + hs['I_energy_yearly']
+    hs['LCOH'] = num / q_annual
+    return hs['LCOH'], hs
 
-    return num/q, hs
 
 def annuity(lt, r=0.03):
 
@@ -136,6 +150,16 @@ def dis_cost_calc(lhd, q):
     d_ave = net_diam(lhd)
 
     return (a*(c1+c2*d_ave)) / lhd * q * (1 + k_loss)
+
+
+def write_results_to_file(data, folder, name, suffix):
+
+    fileDir = os.path.dirname(os.path.abspath(__file__)) + folder + suffix + "\\"
+    Path(fileDir).mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame.from_dict(data)
+
+    fn = fileDir + name + ".csv"
+    df.to_csv(fn, sep=";", encoding='utf-8-sig')
 
 
 # Main
@@ -177,20 +201,23 @@ if __name__ == "__main__":
     fn = fileDir + folder + "network-energy-kpi.csv"
 
     kpi = pd.read_csv(fn, sep=';')
-    print(kpi['q_network'].values[0])
 
     names = ['ashp', 'wshp', 'gshp', 'gas', 'oil', net_type]
-    lcoh = []
-    par = []
+    lcoh = {}
+    par = {}
     for name in names:
         if name == 'htdhn' or 'ltdhn' or 'HTDHN' or 'LTDHN':
             a, b = lcoh_calculator(name, kpi['q_network'].values[0],
                                    kpi['p_network'].values[0], kpi['lhd_energy'].values[0])
+            lcoh[name] = a
+            par[name] = b
         else:
             a, b = lcoh_calculator(name, kpi['q_individual'].values[0],
                                    kpi['p_individual'].values[0], kpi['lhd_energy'].values[0])
-        lcoh.append(a)
-        par.append(b)
+            lcoh[name] = a
+            par[name] = b
 
-    print(lcoh)
+    write_results_to_file(par, "\\output\\results", "economic-kpi", suffix)
+
+
     print('\nProgram ended\n')
