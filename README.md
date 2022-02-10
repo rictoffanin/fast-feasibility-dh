@@ -19,14 +19,24 @@ teleriscaldamento, 2018_  (https://www4.ti.ch/fileadmin/DT/temi/risparmio_energe
 python post_process_gdf.py -com 5192
 </pre>
 
-
 Define a radius ***r*** in meters from the address, and a maximum number of users _**n**_ in the network. 
-Identify the _**n**_ users with the highest demand in the defined area.  
+Identify the _**n**_ users with the highest demand in the defined area for LTDHN or HTDHN
+
+<pre>
+python user_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 250 -n 10 -t LTDHN
+</pre>
+
+  
 Considering the address as the central plant, the topology of the network is created using existing roads.
-The map of the area with the users and the network is produced, and the main KPIs are printed to screen.
+The map of the area with the users and the network is printed to screen.
  
 <pre>
-python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 100 -n 10
+python topology_finder.py -addr "Via La Santa 1, Lugano, Svizzera" -r 250 -n 10 -t LTDHN
+</pre>
+
+The main energy and economical KPI are calculated.
+<pre>
+python economics.py -addr "Via La Santa 1, Lugano, Svizzera" -r 250 -n 10 -t LTDHN
 </pre>
 
 # Parameters
