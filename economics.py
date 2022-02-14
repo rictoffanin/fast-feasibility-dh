@@ -107,8 +107,8 @@ def parameters_with_calc(hs_type, q_annual, p_max, lhd):
         hs['k_O&M'] = 0.025  # % of total investment cost
 
         hs['eta'] = 0.83  # efficiency [-]
-        hs['lifetime'] = 20  # years
-        hs['price'] = 0.078  # CHF/kWh_th
+        hs['lifetime'] = 40  # years
+        hs['price'] = 0.201  # CHF/kWh_th
 
     hs['I_inv_tot'] = hs['i_prod'] + hs['i_dis'] + hs['i_aux'] + hs['i_con']
 
@@ -124,7 +124,7 @@ def lcoh_calculator(hs_type, q_annual, p_max, lhd, lt_project=40, r=0.03):
 
     hs = parameters_with_calc(hs_type, q_annual, p_max, lhd)
     k_a = annuity(lt_project, r)
-    hs['I_inv_yearly_lt_corrected'] = hs['I_inv_tot'] * lt_project / hs['lifetime'] * k_a
+    hs['I_inv_yearly_lt_corrected'] = hs['I_inv_tot'] * round(lt_project / hs['lifetime']) * k_a
     num = hs['I_inv_yearly_lt_corrected'] + hs['I_O&M_yearly'] + hs['I_energy_yearly']
     hs['LCOH'] = num / q_annual
     return hs['LCOH'], hs
@@ -138,14 +138,14 @@ def annuity(lt, r=0.03):
 
 
 def net_diam(lhd):
-    lhd = lhd * (pow(10, 6) / 3600)  # kWh/m to GJ/m
+    lhd = lhd / (pow(10, 6) / 3600)  # kWh/m to GJ/m
     return 0.0486 * np.log(lhd) + 0.0007
 
 
 def dis_cost_calc(lhd, q):
     c1 = 315  # CHF/m
     c2 = 2224  # CHF/m
-    k_loss = 0.08
+    k_loss = 0.07
     a = annuity(40)
     d_ave = net_diam(lhd)
 
