@@ -186,7 +186,15 @@ def kpi_calc(file_suffix, addr, r, users, network, type_dhn):
 
     p_individual = users.loc[users['distance'].idxmin(), 'P_tot']
     q_individual = users.loc[users['distance'].idxmin(), 'fab_tot']
-    p_network = users['P_tot'].sum()  # todo: add concurrency factor
+
+    x3 = -0.0000000381
+    x2 = 0.0000265866
+    x1 = -0.0063224395
+    x0 = 1.00
+    p_concurrent = (lambda x: x3 * pow(x, 3) + x2 * pow(x, 2) + x1 * pow(x, 1) + x0 * pow(x, 0))(len(users)) * users['P_tot'].sum()
+    # from Handbook for Planning District Heating Networks
+
+    p_network = p_concurrent
     q_network = users['fab_tot'].sum()
 
     dict_kpi = {
