@@ -42,7 +42,7 @@ python economics.py -addr "Via La Santa 1, Lugano, Svizzera" -r 250 -n 10 -t LTD
 # Parameters
 The ultimate goal of the tool is to identify, given a starting address and buffer radius or a location, possible clusters
 of buildings where the feasibility of micro DHC networks is higher 
-than the installation of individual buildings.
+than the installation of individual heating systems.
 
 The main parameters to identify a possible area are:
 - land heat density above a certain threshold;
